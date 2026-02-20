@@ -18,176 +18,252 @@ from Yos.Yos_Acd import Acd
 from Yos.Yos_Cfg import Apl_Fin
 
 import os
-from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
-from rich import box
-from rich.align import Align
+from textual.app import App, ComposeResult
+from textual.widgets import Button, Static
+from textual.containers import Horizontal, Vertical, Container
 
-# Inicializamos el motor visual de Yos
-console = Console()
+CSS_MNU = """
+Screen {
+    background: $background;
+}
+#rotulo-app {
+    text-align: center;
+    color: $text;
+    text-style: bold;
+    padding: 0 1;
+}
+#marco {
+    border: double $warning;
+    padding: 1 2;
+    width: 100%;
+    height: 100%;
+    background: $surface;
+}
+#titulo-app {
+    text-align: center;
+    color: $warning;
+    text-style: bold;
+    padding: 0 1;
+}
+#copyright {
+    text-align: center;
+    color: $warning;
+    text-style: italic;
+}
+#fila-cols {
+    width: 100%;
+    height: 1fr;
+}
+.col {
+    border: double $primary;
+    padding: 0 1;
+    margin: 0 1;
+    width: 1fr;
+}
+.titulo-col {
+    text-align: center;
+    text-style: bold;
+    background: $primary-darken-2;
+    padding: 0 1;
+    width: 100%;
+}
+Button {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: $accent;
+    text-align: left;
+    content-align: left middle;
+    height: 1;
+    padding: 0 1;
+    margin: 0;
+}
+Button:hover {
+    background: $primary-darken-1;
+    color: $text;
+    content-align: left middle;
+}
+Button:focus {
+    background: $accent;
+    color: $background;
+    content-align: left middle;
+}
+"""
+
+def _agrupar_menu(fnc_mnu, ent_permitidas):
+    columnas  = []
+    col_actual = None
+    for clave, valor in sorted(fnc_mnu.items(), key=lambda x: int(x[0])):
+        ent  = valor.get("Ent", "")
+        tipo = valor.get("Tip", "")
+        if ent != "" and ent not in ent_permitidas:
+            continue
+        if tipo == "Cab":
+            col_actual = {"titulo": valor["Txt"].upper(), "items": []}
+            columnas.append(col_actual)
+        elif tipo == "Opc" and col_actual is not None:
+            col_actual["items"].append({
+                "id":  clave,
+                "txt": valor["Txt"],
+                "fnc": valor["Fnc"]
+            })
+    return columnas
+
+def _generar_rotulo():
+    """Captura el ASCII art de pyfiglet para usarlo en Textual."""
+    try:
+        import pyfiglet
+        import shutil
+        ancho = shutil.get_terminal_size().columns
+        rotulo = pyfiglet.figlet_format(
+            YosCfg["Apl_Apl"],
+            font=YosCfg["Apl_Etn_Let"]
+        ).strip()
+        # Centramos cada línea
+        lineas = rotulo.splitlines()
+        return "\n".join(linea.center(ancho) for linea in lineas)
+    except Exception:
+        return YosCfg.get("Apl_Apl", "")
+
+
+def _construir_widgets(columnas, nom, cpy):
+    rotulo = _generar_rotulo()          # <-- generamos el rótulo aquí
+
+    def _compose(self):
+        with Container(id="marco"):
+            yield Static(rotulo, id="rotulo-app")   # <-- ASCII art
+            yield Static(f" {nom} ", id="titulo-app")
+            with Horizontal(id="fila-cols"):
+                for col in columnas:
+                    with Vertical(classes="col"):
+                        yield Static(col["titulo"], classes="titulo-col")
+                        for item in col["items"]:
+                            yield Button(
+                                item["txt"],
+                                id=f"btn_{item['id']}",
+                                name=item["fnc"]
+                            )
+            yield Static(f" {cpy} ", id="copyright")
+    return _compose
+
+def _on_mount(self):
+    try:
+        self.query_one("Button").focus()
+    except Exception:
+        pass
+
+
+def _on_button_pressed(self, event):
+    self.exit(event.button.name or "")
+
+
+def _on_key(self, event, salir_fnc):
+    tecla = event.key
+    if tecla == "escape":
+        self.exit(salir_fnc)
+    elif tecla == "up":
+        self.screen.focus_previous()
+    elif tecla == "down":
+        self.screen.focus_next()
+    elif tecla in ("left", "right"):
+        botones_por_col = []
+        for col in self.query(".col"):
+            bts = list(col.query("Button"))
+            if bts:
+                botones_por_col.append(bts)
+        focused = self.screen.focused
+        col_actual = None
+        for i, bts in enumerate(botones_por_col):
+            if focused in bts:
+                col_actual = i
+                break
+        if col_actual is not None:
+            siguiente = (col_actual + 1 if tecla == "right" else col_actual - 1) % len(botones_por_col)
+            botones_por_col[siguiente][0].focus()
+    elif tecla == "enter":
+        focused = self.screen.focused
+        if focused and isinstance(focused, Button):
+            self.exit(focused.name or "")
 
 def Mnu(Fnc_Mnu=None):
-    """
-    Menú dinámico con persistencia usando Rich para estética SpansTools.
-    """
     if not Fnc_Mnu:
         Fnc_Mnu = YosCfg["Apl_Mnu"]
 
-    Salir_Num = ""
-    
-    while True:
-        # 1. Inicialización y Limpieza
-        AplIni() 
+    columnas   = _agrupar_menu(Fnc_Mnu, YosCfg.get("Ent", []))
+    nom        = YosCfg.get("Apl_Nom", "Aplicación")
+    cpy        = YosCfg.get("Apl_Cpy", "")
+    salir_fnc  = next((i["fnc"] for col in columnas for i in col["items"] if i["txt"] == "SALIR"), "")
 
-        # 2. Agrupar por decenas (Tu lógica original de Clipper/Fox)
-        grupos = {}
-        items = sorted(Fnc_Mnu.items())
+    _fn_compose = _construir_widgets(columnas, nom, cpy)  # rótulo incluido
 
-        for clave, valor in items:
-            ent = valor.get("Ent", "")
-            if ent == "" or ent in YosCfg["Ent"]:
-                decena = clave[0]
-                if decena not in grupos:
-                    grupos[decena] = []
-                grupos[decena].append({"id": clave, "txt": valor["Txt"], "fnc": valor["Fnc"]})
+    def _fn_on_key(self, event):
+        _on_key(self, event, salir_fnc)
 
-        claves_grupos = sorted(grupos.keys())
-        columnas = [grupos[k] for k in claves_grupos]
-        num_cols = len(columnas)
-        
-        if num_cols == 0: return "" 
+    class _App(App):
+        CSS                    = CSS_MNU
+        ENABLE_COMMAND_PALETTE = False
+        compose                = _fn_compose
+        on_mount               = _on_mount
+        on_button_pressed      = _on_button_pressed
+        on_key                 = _fn_on_key
 
-        # 3. Construcción del Menú con Rich (Win/Linux/Mac compatible)
-        # Creamos la tabla que organiza las columnas automáticamente
-        tabla_mnu = Table(show_header=True, 
-                          header_style="bold magenta", 
-                          border_style="bright_blue",
-                          box=box.DOUBLE,#None, 
-                          expand=True, 
-                          padding=(0, 2))
-
-        # Añadimos los encabezados de columna
-        for col in columnas:
-            texto_titular = col[0]["txt"].upper()
-            titular_centrado = Align.center(texto_titular)
-            #titulo = col[0]["txt"].upper()
-            #tabla_mnu.add_column(titulo)
-            #tabla_mnu.add_column(titulo, justify="center")
-            tabla_mnu.add_column(titular_centrado)
-
-        # Calculamos la profundidad de las filas (saltando el título)
-        max_filas = max(len(col) for col in columnas)
-
-        for i in range(1, max_filas):
-            fila_completa = []
-            for col in columnas:
-                if i < len(col):
-                    item = col[i]
-                    # Lógica para la tecla rápida 'S'
-                    id_ver = "S" if item['txt'] == "SALIR" else item['id']
-                    if item['txt'] == "SALIR":
-                        Salir_Num = item['id']
-                    
-                    # Formateamos con colores Rich
-                    fila_completa.append(f"[bold white]{id_ver}[/] - [cyan]{item['txt']}[/]")
-                else:
-                    fila_completa.append("")
-            tabla_mnu.add_row(*fila_completa)
-
-        # 4. Impresión de Pantalla estilo SpansTools
-        # El Panel crea el marco de doble línea (box.DOUBLE) automáticamente
-        console.print(Panel(tabla_mnu, 
-                            title=f"[bold yellow] {YosCfg.get('Apl_Nom', 'ERROR YosCfg.Apl_Nom')} [/]", 
-                            subtitle=f"[bold yellow] {YosCfg.get('Apl_Cpy', 'ERROR YosCfgApl_Cpy.')} [/]",# "[italic blue] mtcyos 2026 [/]",
-                            border_style="black",
-                            box=box.DOUBLE))
-
-        # 5. Captura de datos con NORMALIZACIÓN
-        try:
-            entrada = console.input("[bold yellow] 💻 Seleccione Opción: [/]").strip()
-        except EOFError:
-            break
-
-        if entrada.upper() == 'S':
-            MnuOpc = Salir_Num
-        else:
-            MnuOpc = entrada.zfill(2)
-
-        # 6. Lógica de ejecución
-        if MnuOpc in Fnc_Mnu:
-            ent_opc = Fnc_Mnu[MnuOpc].get("Ent", "")
-            if ent_opc == "" or ent_opc in YosCfg["Ent"]:
-                MnuFnc = Fnc_Mnu[MnuOpc]["Fnc"]
-                
-                if MnuFnc == "":
-                    continue
-                else:
-                    # Retornamos la función para que el cerebro la ejecute
-                    return MnuFnc
+    resultado = _App().run()
+    return resultado if resultado else ""
 
 def MnuRec(Fnc_Mnu):
-    """
-    Recupero el menu de la base de datos SQLite YosCfg
-    """
     if not Fnc_Mnu:
         Fnc_Mnu = "Main"
-
     from Yos.Idd_BdtSvr import Cnx, SelTot, Cie, Sel
-    Mem_Cnx_Mnu_Rec = Cnx("YosCfg")
-    Mem_Cur_Mnu_Rec = Mem_Cnx_Mnu_Rec.cursor()
-
-    Mem_Sql = "SELECT * FROM Mnu WHERE cMnu='"+Fnc_Mnu+"' and (cEtn='"+YosCfg["Etn"]+"' OR cEtn='' OR cEtn IS NULL) ORDER BY cNum"
-    Mem_Dat = SelTot(Mem_Cur_Mnu_Rec, Mem_Sql, pParams=())
+    Mem_Cnx = Cnx("YosCfg")
+    Mem_Cur = Mem_Cnx.cursor()
+    Mem_Sql = """
+        SELECT * FROM Mnu 
+        WHERE cMnu=? AND (cEtn=? OR cEtn='' OR cEtn IS NULL) 
+        ORDER BY cNum
+    """
+    Mem_Dat = SelTot(Mem_Cur, Mem_Sql, pParams=(Fnc_Mnu, YosCfg["Etn"]))
 
     if not Mem_Dat:
-        # --- BLOQUE DE CREACIÓN DE MENÚ SI NO EXISTE ---
         if Fnc_Mnu == "Main":
-            Mem_Cnx_Mnu_Cre = Cnx("YosCfg", "rw")
-            Mem_Cur_Mnu_Cre = Mem_Cnx_Mnu_Cre.cursor()
-
-            # Verificamos tabla
+            Mem_Cnx_Cre = Cnx("YosCfg", "rw")
+            Mem_Cur_Cre = Mem_Cnx_Cre.cursor()
             Mem_Sql_Cre = "SELECT name FROM sqlite_master WHERE type='table' AND name='Mnu'"
-            if not Sel(Mem_Cur_Mnu_Cre, Mem_Sql_Cre):
-                Mem_Cur_Mnu_Cre.execute("""
+            if not Sel(Mem_Cur_Cre, Mem_Sql_Cre):
+                Mem_Cur_Cre.execute("""
                     CREATE TABLE IF NOT EXISTS "Mnu" (
-                        "cApl" TEXT(30), "cMnu" TEXT(25), "cNum" TEXT(3),
-                        "cEtn" TEXT(10), "cTxt" TEXT(50), "cFnc" TEXT(200),
-                        "cModRegNik" TEXT(20), "cModRegTim" TEXT(20)
+                        "cApl" TEXT(30), "cMnu" TEXT(25), "cTip" TEXT(3),
+                        "cNum" INTEGER,  "cEtn" TEXT(10), "cTxt" TEXT(50),
+                        "cFnc" TEXT(200),"cModRegNik" TEXT(20), "cModRegTim" TEXT(20)
                     );
                 """)
-            
-            # Registros básicos (Honor a quien honor merece)
             from datetime import datetime
-            cTimModReg = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            Mem_Sql_Ins = f"""
+            cTim = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            Mem_Cur_Cre.execute(f"""
                 INSERT INTO 'Mnu' VALUES
-                    ('YosCtr','Main','00',NULL,'ENTORNO'        ,''                                 ,'YosCfg','{cTimModReg}'),
-                    ('YosCtr','Main','01',NULL,'RECARGAR MENU'  ,'YosMnuCag'                        ,'YosCfg','{cTimModReg}'),
-                    ('YosCtr','Main','02',NULL,'MODIFICAR MENU' ,'YosMnuCag'                        ,'YosCfg','{cTimModReg}'),
-                    ('YosCtr','Main','05',NULL,'CONTACTENOS'    ,'Yos.EmlEnv("mtcyos@yahoo.es")'    ,'YosCfg','{cTimModReg}'),
-                    ('YosCtr','Main','06',NULL,'LICENCIA'       ,'Yos.Acd_Res()'                    ,'YosCfg','{cTimModReg}'),
-                    ('YosCtr','Main','07',NULL,'ENTORNO'        ,'Yos.AcdEtn()'                     ,'YosCfg','{cTimModReg}'),
-                    ('YosCtr','Main','08',NULL,'ACERCA DE ...'  ,'Yos.Acd()'                        ,'YosCfg','{cTimModReg}'),
-                    ('YosCtr','Main','09',NULL,'SALIR'          ,'Yos.Apl_Fin()'                    ,'YosCfg','{cTimModReg}');
-            """
-            Mem_Cur_Mnu_Cre.execute(Mem_Sql_Ins)
-            Mem_Cnx_Mnu_Cre.commit()
-            Cie(Mem_Cnx_Mnu_Cre)
+                    ('YosCtr','Main','Cab',10,NULL,'ENTORNO'        ,NULL          ,'YosCfg','{cTim}'),
+                    ('YosCtr','Main','Opc',11,NULL,'RECARGAR MENU'  ,'YosMnuCag'  ,'YosCfg','{cTim}'),
+                    ('YosCtr','Main','Opc',12,NULL,'MODIFICAR MENU' ,'YosMnuCag'  ,'YosCfg','{cTim}'),
+                    ('YosCtr','Main','Opc',15,NULL,'CONTACTENOS'    ,'Yos.EmlEnv' ,'YosCfg','{cTim}'),
+                    ('YosCtr','Main','Opc',16,NULL,'LICENCIA'       ,'Yos.Acd_Res','YosCfg','{cTim}'),
+                    ('YosCtr','Main','Opc',17,NULL,'ENTORNO'        ,'Yos.AcdEtn' ,'YosCfg','{cTim}'),
+                    ('YosCtr','Main','Opc',18,NULL,'ACERCA DE ...'  ,'Yos.Acd'    ,'YosCfg','{cTim}'),
+                    ('YosCtr','Main','Opc',19,NULL,'SALIR'          ,'Yos.Apl_Fin','YosCfg','{cTim}');
+            """)
+            Mem_Cnx_Cre.commit()
+            Cie(Mem_Cnx_Cre)
+            Mem_Dat = SelTot(Mem_Cur, Mem_Sql, pParams=(Fnc_Mnu, YosCfg["Etn"]))
 
-            # Recargamos tras crear
-            Mem_Dat = SelTot(Mem_Cur_Mnu_Rec, Mem_Sql, pParams=())
-
-    # Generamos el diccionario para YosCfg
+    # Construimos el diccionario con cNum como clave para mantener orden
     Mem_Dic_Tmp = {}
-    for Mem_Uni in Mem_Dat:
-        Mem_Dic_Tmp[Mem_Uni["cNum"]] = {
-            "Txt": Mem_Uni["cTxt"],
-            "Fnc": Mem_Uni["cFnc"] if Mem_Uni["cFnc"] is not None else ""
+    for row in Mem_Dat:
+        Mem_Dic_Tmp[str(row["cNum"])] = {
+            "Tip": row["cTip"],
+            "Txt": row["cTxt"],
+            "Fnc": row["cFnc"] if row["cFnc"] is not None else "",
+            "Ent": row["cEtn"] if row["cEtn"] is not None else ""
         }
 
-    Cie(Mem_Cnx_Mnu_Rec)
-
+    Cie(Mem_Cnx)
     if Fnc_Mnu == "Main":
         YosCfg["Apl_Mnu"] = Mem_Dic_Tmp
         YosCfg.sync()
