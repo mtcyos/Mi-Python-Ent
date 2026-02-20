@@ -1,5 +1,15 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*
+"""
+   Yos_Mnu.py
+   Genero el Menu de la Aplicacion
+
+   Copyright (c) 2026 Miguel Tortosa
+
+   Licenciado bajo la Licencia MIT.
+
+   Consulte el archivo LICENCIA en la raíz del proyecto para más información.
+"""
 
 import Yos
 from Yos.Yos_Frm import FrmCls, FrmWit
@@ -8,28 +18,28 @@ from Yos.Yos_Acd import Acd
 from Yos.Yos_Cfg import Apl_Fin
 
 import os
-from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
-from rich import box
 
-# Inicializamos el motor visual de Yos
-console = Console()
+from colorama import Fore, Style
 
-def Mnu(Fnc_Mnu=None):
+def Mnu(Fnc_Mnu= YosCfg["Apl_Mnu"]):
     """
-    Menú dinámico con persistencia usando Rich para estética SpansTools.
+    Menú dinámico con persistencia.
+    Se mantiene ejecutándose hasta que se elige una función externa.
     """
+
     if not Fnc_Mnu:
         Fnc_Mnu = YosCfg["Apl_Mnu"]
 
-    Salir_Num = ""
-    
+    Salir_Num=""
     while True:
-        # 1. Inicialización y Limpieza
-        AplIni() 
+        # Limpiamos pantalla en cada ciclo para que el menú siempre esté arriba
+        # FrmCls() debería tener: os.system('clear' if os.name != 'nt' else 'cls')
+ #       FrmCls()
+        AplIni()
 
-        # 2. Agrupar por decenas (Tu lógica original de Clipper/Fox)
+        ancho_total = YosCfg["Apl_Etn_Lon"]
+
+        # 1. Agrupar por decenas (0, 1, 8, 9)
         grupos = {}
         items = sorted(Fnc_Mnu.items())
 
@@ -41,83 +51,100 @@ def Mnu(Fnc_Mnu=None):
                     grupos[decena] = []
                 grupos[decena].append({"id": clave, "txt": valor["Txt"], "fnc": valor["Fnc"]})
 
+        # 2. Preparar columnas
         claves_grupos = sorted(grupos.keys())
         columnas = [grupos[k] for k in claves_grupos]
         num_cols = len(columnas)
-        
-        if num_cols == 0: return "" 
+        if num_cols == 0: return "" # Evitar división por cero
 
-        # 3. Construcción del Menú con Rich (Win/Linux/Mac compatible)
-        # Creamos la tabla que organiza las columnas automáticamente
-        tabla_mnu = Table(show_header=True, 
-                          header_style="bold magenta", 
-                          box=None, 
-                          expand=True, 
-                          padding=(0, 2))
+        ancho_col = ancho_total // num_cols
 
-        # Añadimos los encabezados de columna
-        for col in columnas:
+        # 3. Imprimir Títulos de cada columna
+        linea_titulos = ""
+        for i, col in enumerate(columnas):
             titulo = col[0]["txt"].upper()
-            tabla_mnu.add_column(titulo)
+            bloque_titulo = f"{titulo[:ancho_col-3]:^{ancho_col-1}}"
 
-        # Calculamos la profundidad de las filas (saltando el título)
+            if i < len(columnas) - 1:
+                linea_titulos += Fore.MAGENTA + Style.BRIGHT + bloque_titulo + Fore.BLUE + "|"
+            else:
+                linea_titulos += Fore.MAGENTA + Style.BRIGHT + bloque_titulo
+
+        print(linea_titulos)
+        print(Fore.BLUE + "═" * ancho_total)
+
+        # 4. Imprimir las opciones (fila por fila)
+        # Empezamos en 1 porque la fila 0 es el título del grupo
         max_filas = max(len(col) for col in columnas)
 
         for i in range(1, max_filas):
-            fila_completa = []
-            for col in columnas:
+            fila_completa = ""
+            for j, col in enumerate(columnas):
+                ancho_disponible = ancho_col - 1
+
                 if i < len(col):
                     item = col[i]
-                    # Lógica para la tecla rápida 'S'
-                    id_ver = "S" if item['txt'] == "SALIR" else item['id']
+ #                   texto_celda = f" {item['id']} - {item['txt']}"
+                    # Si el testo es "SALIR" Salir_Num
+                    id_ver = "S".ljust(len(item['id'])) if item['txt'] == "SALIR" else item['id']
                     if item['txt'] == "SALIR":
                         Salir_Num = item['id']
-                    
-                    # Formateamos con colores Rich
-                    fila_completa.append(f"[bold white]{id_ver}[/] - [cyan]{item['txt']}[/]")
-                else:
-                    fila_completa.append("")
-            tabla_mnu.add_row(*fila_completa)
 
-        # 4. Impresión de Pantalla estilo SpansTools
-        # El Panel crea el marco de doble línea (box.DOUBLE) automáticamente
-        console.print(Panel(tabla_mnu, 
-                            title=f"[bold yellow] {YosCfg.get('Apl_Nom', 'Yos_Menu')} [/]", 
-                            subtitle=f"[bold yellow] {YosCfg.get('Apl_Cpy', 'Yos_Menu')} [/]",# "[italic blue] mtcyos 2026 [/]",
-                            border_style="bright_blue",
-                            box=box.DOUBLE))
+                    texto_celda = f" {id_ver} - {item['txt']}"
+                    contenido = f"{texto_celda[:ancho_disponible]:<{ancho_disponible}}"
+                else:
+                    contenido = " " * ancho_disponible
+
+                if j < num_cols - 1:
+                    fila_completa += Fore.WHITE + contenido + Fore.BLUE + "|"
+                else:
+                    fila_completa += Fore.WHITE + contenido
+
+            print(fila_completa)
+
+        print(Fore.BLUE + "═" * ancho_total)
 
         # 5. Captura de datos con NORMALIZACIÓN
-        try:
-            entrada = console.input("[bold yellow] 💻 Seleccione Opción: [/]").strip()
-        except EOFError:
-            break
-
-        if entrada.upper() == 'S':
+        # .strip() elimina espacios accidentales y .zfill(2) asegura el formato "06"
+#        MnuOpc = input(Fore.YELLOW + " 💻 Seleccione Opción: " + Fore.WHITE).strip().zfill(2)
+        Entrada = input(Fore.YELLOW + " 💻 Seleccione Opción: " + Fore.WHITE).strip()
+        # Si es 'S' o 's', la convertimos en '099' para que el sistema la reconozca
+        if Entrada.upper() == 'S':
             MnuOpc = Salir_Num
         else:
-            MnuOpc = entrada.zfill(2)
+            MnuOpc = Entrada.zfill(2)
 
-        # 6. Lógica de ejecución
+        # 6. Lógica de validación y ejecución
         if MnuOpc in Fnc_Mnu:
             ent_opc = Fnc_Mnu[MnuOpc].get("Ent", "")
             if ent_opc == "" or ent_opc in YosCfg["Ent"]:
                 MnuFnc = Fnc_Mnu[MnuOpc]["Fnc"]
-                
-                if MnuFnc == "":
-                    continue
-                else:
-                    # Retornamos la función para que el cerebro la ejecute
-                    return MnuFnc
+            else:
+                continue
+
+            # --- SECCIÓN DE ACCIONES INTERNAS ---
+            if MnuFnc == "":
+                # Es un encabezado o una opción vacía
+                #print(Fore.CYAN + " ℹ️  Opción informativa (encabezado).")
+                #os.system('sleep 1' if os.name != 'nt' else 'timeout 1 > NUL')
+                continue
+
+            # --- SECCIÓN DE RETORNO EXTERNO ---
+            else:
+                # Si llegamos aquí, es una función real (ej: "Yos.Acd()")
+                return MnuFnc
+
+        #else:
+            #print(Fore.RED + f" ❌ '{MnuOpc}' no es una opción válida." + Fore.WHITE)
+            ## Pequeña pausa para que el usuario lea el error antes de limpiar pantalla
+            #os.system('sleep 1.5' if os.name != 'nt' else 'timeout 2 > NUL')
 
 def MnuRec(Fnc_Mnu):
-    """
-    Recupero el menu de la base de datos SQLite YosCfg
-    """
+    # Recupero el menu de YosCfg.Mnu
     if not Fnc_Mnu:
         Fnc_Mnu = "Main"
 
-    from Yos.Idd_BdtSvr import Cnx, SelTot, Cie, Sel
+    from Yos.Idd_BdtSvr import Cnx, SelTot, Cie,Sel
     Mem_Cnx_Mnu_Rec = Cnx("YosCfg")
     Mem_Cur_Mnu_Rec = Mem_Cnx_Mnu_Rec.cursor()
 
@@ -125,26 +152,34 @@ def MnuRec(Fnc_Mnu):
     Mem_Dat = SelTot(Mem_Cur_Mnu_Rec, Mem_Sql, pParams=())
 
     if not Mem_Dat:
-        # --- BLOQUE DE CREACIÓN DE MENÚ SI NO EXISTE ---
+        print(f"ERROR: NO EXISTE EL MENU {Fnc_Mnu} DE LA APLICACION {YosCfg["Apl_Apl"]} EN YosCfg")
         if Fnc_Mnu == "Main":
+            print("CREANDO MENU Main")
             Mem_Cnx_Mnu_Cre = Cnx("YosCfg", "rw")
-            Mem_Cur_Mnu_Cre = Mem_Cnx_Mnu_Cre.cursor()
+            Mem_Cur_Mnu_Cre = Mem_Cnx_Mnu_Rec.cursor()
 
-            # Verificamos tabla
+            # 1. Intentamos verificar si la tabla existe en el catálogo de SQL [cite: 2026-01-29]
             Mem_Sql_Cre = "SELECT name FROM sqlite_master WHERE type='table' AND name='Mnu'"
-            if not Sel(Mem_Cur_Mnu_Cre, Mem_Sql_Cre):
-                Mem_Cur_Mnu_Cre.execute("""
+
+            Mem_Dat = Sel(Mem_Cur_Mnu_Cre, Mem_Sql_Cre)
+            if not Mem_Dat:
+                Mem_Sql_Cre = """
                     CREATE TABLE IF NOT EXISTS "Mnu" (
-                        "cApl" TEXT(30), "cMnu" TEXT(25), "cNum" TEXT(3),
-                        "cEtn" TEXT(10), "cTxt" TEXT(50), "cFnc" TEXT(200),
-                        "cModRegNik" TEXT(20), "cModRegTim" TEXT(20)
-                    );
-                """)
-            
-            # Registros básicos (Honor a quien honor merece)
+                        "cApl"          TEXT(30),
+                        "cMnu"          TEXT(25),
+                        "cNum"          TEXT(3),
+                        "cEtn"          TEXT(10),
+                        "cTxt"          TEXT(50),
+                        "cFnc"          TEXT(200),
+                        "cModRegNik"    TEXT(20),
+                        "cModRegTim"    TEXT(20)
+                        );
+                    """
+                Mem_Dat = Sel(Mem_Cur_Mnu_Cre, Mem_Sql_Cre)
+            # Añado Registros Basicos
             from datetime import datetime
             cTimModReg = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            Mem_Sql_Ins = f"""
+            Mem_Sql_Cre = f"""
                 INSERT INTO 'Mnu' VALUES
                     ('YosCtr','Main','00',NULL,'ENTORNO'        ,''                                 ,'YosCfg','{cTimModReg}'),
                     ('YosCtr','Main','01',NULL,'RECARGAR MENU'  ,'YosMnuCag'                        ,'YosCfg','{cTimModReg}'),
@@ -155,20 +190,23 @@ def MnuRec(Fnc_Mnu):
                     ('YosCtr','Main','08',NULL,'ACERCA DE ...'  ,'Yos.Acd()'                        ,'YosCfg','{cTimModReg}'),
                     ('YosCtr','Main','09',NULL,'SALIR'          ,'Yos.Apl_Fin()'                    ,'YosCfg','{cTimModReg}');
             """
-            Mem_Cur_Mnu_Cre.execute(Mem_Sql_Ins)
-            Mem_Cnx_Mnu_Cre.commit()
+            Mem_Dat = Sel(Mem_Cur_Mnu_Cre, Mem_Sql_Cre)
+
             Cie(Mem_Cnx_Mnu_Cre)
 
-            # Recargamos tras crear
+            # Vuelvo a cargar el menu
+            Mem_Sql = "SELECT * FROM Mnu WHERE cApl='" +YosCfg["Apl_Apl"] +"' and cMnu='"+Fnc_Mnu+"' and (cEtn='"+YosCfg["Etn"]+"' OR cEtn='' OR cEtn IS NULL) ORDER BY cNum"
             Mem_Dat = SelTot(Mem_Cur_Mnu_Rec, Mem_Sql, pParams=())
 
-    # Generamos el diccionario para YosCfg
     Mem_Dic_Tmp = {}
+
     for Mem_Uni in Mem_Dat:
+        # Llenamos el temporal
         Mem_Dic_Tmp[Mem_Uni["cNum"]] = {
             "Txt": Mem_Uni["cTxt"],
             "Fnc": Mem_Uni["cFnc"] if Mem_Uni["cFnc"] is not None else ""
         }
+#        print(Mem_Uni["cApl"]+" - "+Mem_Uni["cMnu"]+" - "+Mem_Uni["cNum"]+" - "+str(Mem_Uni["cEtn"])+" - "+Mem_Uni["cTxt"]+" - "+str(Mem_Uni["cFnc"]))
 
     Cie(Mem_Cnx_Mnu_Rec)
 
