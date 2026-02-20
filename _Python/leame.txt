@@ -1,0 +1,63 @@
+# Entorno Python Portable Yos
+
+Este entorno contiene una instalación portable de Python, junto con las librerías desarrolladas por Yos.  
+Sirve como base para ejecutar las aplicaciones Yos en cualquier ordenador, **sin necesidad de instalar Python ni permisos de administrador**.
+
+---
+
+## 📁 ¿Dónde copiar esta carpeta?
+
+Coloca la carpeta principal de Python portable (por ejemplo, `C:\Python` o en un pendrive) en la ubicación deseada de tu equipo.
+
+**Estructura recomendada:**
+
+```
+C:\Python\
+ ├── _Python       # Ejecutable portable de Python
+ └── Lib
+      └── Yos      # Librería Yos y recursos (no modificar)
+          └── img
+```
+
+---
+
+## 🚀 Cómo usar este entorno
+
+1. **No instales nada:**  
+   Solo copia toda la carpeta directamente en tu equipo (o en un USB).
+
+2. **Para ejecutar tus aplicaciones Yos:**  
+   Usa un archivo `.bat` de lanzador o desde terminal.
+   - Ejemplo:  
+     Haz doble clic en `YosMnu.bat`  
+     o, desde consola:
+     ```cmd
+     cd C:\Python
+     _Python\python.exe ruta\al\script.py
+     ```
+
+3. **No necesitas instalar Python ni pip.**
+   El ejecutable Python y todas las librerías están incluidas en esta carpeta.
+
+---
+
+## ⚠️ Notas y Recomendaciones
+
+- **No borres ni cambies la estructura interna** (el Python portable depende de su subcarpeta “Lib”).
+- Si añades nuevas aplicaciones, colócalas junto al entorno, nunca dentro de “Lib” o “Yos”.
+- Si la carpeta viaja en un pendrive, asegúrate de que la letra de unidad no cambie entre PCs (o usa rutas relativas en tus scripts).
+- Para instalar más librerías, puedes usar:
+  ```
+  _Python\python.exe -m pip install NOMBRE_LIBRERIA --target=Lib
+  ```
+  (¡o consulta al responsable del entorno para mantener la robustez y compatibilidad!)
+
+---
+
+## 📝 Ayuda
+
+Si tienes dudas, contacta con:  
+Miguel Tortosa  
+Correo: mtcyos@yahoo.es
+
+---
