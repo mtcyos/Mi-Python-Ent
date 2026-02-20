@@ -86,13 +86,10 @@ def AplIni():
 #            Rotulo=YosCfg['Apl_Nom']+" - Version - "+YosCfg['Apl_Vsn']
 #            print(f"{Rotulo:^{YosCfg["Apl_Etn_Lon"]}}")
 
-            print(f"{Fore.WHITE+YosCfg['Apl_Nom']:^{YosCfg["Apl_Etn_Lon"]}}")
-#            Rotulo="Version - "+YosCfg['Apl_Vsn']
-#            print(f"{Rotulo:^{YosCfg["Apl_Etn_Lon"]}}")
-#            print(f"{YosCfg['Apl_Vsn']:^{YosCfg["Apl_Etn_Lon"]}}")
-            print(f"{YosCfg['Apl_Cpy']:^{YosCfg["Apl_Etn_Lon"]}}")
+#            print(f"{Fore.WHITE+YosCfg['Apl_Nom']:^{YosCfg["Apl_Etn_Lon"]}}")
+#            print(f"{YosCfg['Apl_Cpy']:^{YosCfg["Apl_Etn_Lon"]}}")
             #time.sleep(5))
-            print(Fore.BLUE + "═" * YosCfg["Apl_Etn_Lon"]+Fore.WHITE)
+#            print(Fore.BLUE + "═" * YosCfg["Apl_Etn_Lon"]+Fore.WHITE)
 
         case "Www":
             # Internet

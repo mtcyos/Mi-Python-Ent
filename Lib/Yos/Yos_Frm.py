@@ -34,7 +34,7 @@ def FrmWit(Fnc_Txt="",Fnc_Wit=0):
     else:
         Fnc_Txt=f"Pulse INTRO para continuar "
 
-    # Espera a que pulses Intro o que pase el yiempo asignado
+    # Espera a que pulses Intro o que pase el Tiempo asignado
     if Fnc_Wit==0:
         input(Fnc_Txt)
     else:
