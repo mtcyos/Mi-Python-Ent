@@ -47,7 +47,7 @@ YosCfg["Etn_Tmp"]=tempfile.gettempdir()
 
 # Aplicacion
 YosCfg["Apl_Apl"]       ="" # Nombre de la Aplicacion
-YosCfg["Apl_Tit"]   ="" # TITULO de la Aplicacion
+YosCfg["Apl_Tit"]       ="" # TITULO de la Aplicacion
 YosCfg["Apl_Etn"]       ="" # Entorno de la Aplicacion Txt=Modo Terminal, Www=Web
 YosCfg["Apl_Etn_Lon"]   =0 # Si el Entorno es Txt, Ancho de la pantalla (Longitud), no poner nada, se calcula
 YosCfg["Apl_Etn_Let"]   ="" #"dos_rebel","banner3"# Si el Entorno es Txt, Tipo de letra para el Rotulo, Modulo pyfiglet
@@ -82,7 +82,8 @@ Mem_Cnx_YosCfg = Cnx("YosCfg")
 Mem_Cur_YosCfg = Mem_Cnx_YosCfg.cursor()
 
 import sys
-YosCfg["Apl_Apl"], Mem_Dat = os.path.splitext(os.path.basename(sys.argv[0])) # Recupero el nombre del Script Inicial
+#YosCfg["Apl_Apl"], Mem_Dat = os.path.splitext(os.path.basename(sys.argv[0])) # Recupero el nombre del Script Inicial
+YosCfg["Apl_Apl"]=Mem_Ini_AplNom
 
 Mem_Sql = "SELECT * FROM Apl LIMIT 1"
 Mem_Dat = Sel(Mem_Cur_YosCfg, Mem_Sql)
@@ -92,7 +93,7 @@ if Mem_Dat is None:
     input("PULSE INTRO PARA FINALIZAR")
     sys.exit(1)
 
-YosCfg["Apl_Etn"]       = Mem_Dat["cEtnApl"] # "Txt" # Entorno de la Aplicacion Txt=Modo Terminal, Win=Entorno Grafico, Www=Web
+YosCfg["Apl_Etn"]       = Mem_Dat["cEtnApl"] # "Txt" # "Txt"=Modo Terminal - Colorama, "Gui"=Modo Terminal - Textual, "Www"=Web
 YosCfg["Apl_Etn_Let"]   = Mem_Dat["cEtnAplLet"] # "dos_rebel" #"banner3"# Si el Entorno es Txt, Tipo de letra para el Rotulo, Modulo pyfiglet
 YosCfg["Apl_Nom"]       = Mem_Dat["cNom"] # Control central entorno Yos" # Nombre EXTENDIDO de la aplicacion
 YosCfg["Apl_Vsn"]       = Mem_Dat["cVsn"] # "2026.01" # Version de la Aplicacion
@@ -145,7 +146,7 @@ for Mem_Uni in Mem_Dat:
 Cie(Mem_Cnx_YosCfg)
 
 # Recuperamos el menu YosCfg.Mnu
-from Yos.Yos_Mnu import MnuRec
+from Yos.Yos_Ini import MnuRec
 MnuRec("Main")
 
 #input(dict(YosCfg))
@@ -154,4 +155,3 @@ MnuRec("Main")
 #print("\n".join([f"{k}: {v}" for k, v in YosCfg.items() if k.startswith("Apl_")]))
 #print("--------------------------------------------------")
 #input("Fin")
-

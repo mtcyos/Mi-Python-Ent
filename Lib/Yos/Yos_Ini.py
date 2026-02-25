@@ -16,8 +16,7 @@ def AplIni():
 #    print(YosCfg["Apl_Etn"])
     # Entorno de la Aplicacion Txt=Modo Terminal, Win=Entorno Grafico, Www=Web
     match YosCfg["Apl_Etn"]:
-        case "Txt":
-            # Terminal
+        case "Txt": # "Txt"=Modo Terminal - Colorama
             import ctypes
             import time
 
@@ -91,9 +90,36 @@ def AplIni():
             #time.sleep(5))
 #            print(Fore.BLUE + "═" * YosCfg["Apl_Etn_Lon"]+Fore.WHITE)
 
-        case "Www":
-            # Internet
-            print("INICIO DE APLICACION EN WEB")
+        case "Gui": # "Gui"=Modo Terminal - Textual
+            import ctypes
+            import time
+
+            match YosCfg["Etn"]:
+                case "Windows":
+                    # Obtener el handle de la ventana actual (CMD)
+                    hwnd = ctypes.windll.kernel32.GetConsoleWindow()
+                    # Maximizar la ventana
+                    ctypes.windll.user32.ShowWindow(hwnd, 3) # 3 es SW_MAXIMIZE
+                    # También puedes usar el atajo con ctypes
+                    # ctypes.windll.user32.keybd_event(0x5B, 0, 0, 0) # Presiona tecla Windows (0x5B)
+                    # ctypes.windll.user32.keybd_event(0x26, 0, 0, 0) # Presiona Flecha Arriba (0x26)
+                    # ctypes.windll.user32.keybd_event(0x5B, 0, 2, 0) # Suelta tecla Windows
+                    # ctypes.windll.user32.keybd_event(0x26, 0, 2, 0) # Suelta Flecha Arriba
+                    pass
+
+                case "Linux":
+                    pass
+                    try:
+                        # Intentamos maximizar, pero si falla, no rompemos el programa
+                        sys.stdout.write("\x1b[9;1t")
+                        sys.stdout.flush()
+                    except Exception:
+                        # Si falla, simplemente limpiamos pantalla y seguimos
+                        os.system("clear")
+
+                case _:
+                    print("Otro")
+
 
         case _:
             # El "Otherwise" o default
@@ -101,3 +127,39 @@ def AplIni():
             input("PULSE INTRO PARA FINALIZAR")
             import sys
             sys.exit(0)
+
+
+def MnuRec(Fnc_Mnu):
+    if not Fnc_Mnu:
+        Fnc_Mnu = "Main"
+    from Yos.Idd_BdtSvr import Cnx, SelTot, Cie, Sel
+    Mem_Cnx = Cnx("YosCfg")
+    Mem_Cur = Mem_Cnx.cursor()
+    Mem_Sql = """
+        SELECT * FROM Mnu 
+        WHERE cMnu=? AND (cEtn=? OR cEtn='' OR cEtn IS NULL) 
+        ORDER BY cNum
+    """
+    Mem_Dat = SelTot(Mem_Cur, Mem_Sql, pParams=(Fnc_Mnu, YosCfg["Etn"]))
+
+    if not Mem_Dat:
+        print(f"ERROR: EXISTEN DATOS DEL MENU (Mnu) en ./Bdt/YosCfg.Bdt")
+        input("PULSE INTRO PARA CONTINUAR")
+        sys.exit(1)
+
+    # Construimos el diccionario con cNum como clave para mantener orden
+    Mem_Dic_Tmp = {}
+    for row in Mem_Dat:
+        Mem_Dic_Tmp[str(row["cNum"])] = {
+            "Tip": row["cTip"],
+            "Txt": row["cTxt"],
+            "Fnc": row["cFnc"] if row["cFnc"] is not None else "",
+            "Ent": row["cEtn"] if row["cEtn"] is not None else ""
+        }
+
+    Cie(Mem_Cnx)
+    if Fnc_Mnu == "Main":
+        YosCfg["Apl_Mnu"] = Mem_Dic_Tmp
+        YosCfg.sync()
+    else:
+        return Mem_Dic_Tmp

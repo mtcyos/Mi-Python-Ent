@@ -107,11 +107,11 @@ def Cnx(Fnc_Svr, Fnc_Mod="ro"):
                 # Validamos existencia física
                 SvrDir = os.path.join(YosCfg["Apl_Dir_Bdt"], Fnc_Svr + ".Bdt")
                 if not os.path.exists(SvrDir):
-                    print(f"ERROR: NO EXISTE LA BASE DE DATOS : {SvrDir}")
+                    print(f"ERROR: NO EXISTE LA BASE DE DATOS : ./Bdt/{Fnc_Svr}.Bdt")
                     # Verifico que EXISTAN las tablas de SQLite.Yos.cfg
                     YosCfg_Vfy()
                     SvrDir = os.path.join(YosCfg["Apl_Dir_Bdt"], Fnc_Svr + ".Bdt")
-                    print(f"SE HA CREADO LA BASE DE DATOS : {SvrDir}")
+                    print(f"SE HA CREADO LA BASE DE DATOS : ./Bdt/{Fnc_Svr}.Bdt")
                     print("DEBE ACTUALIZAR LOS DATOS DE LA APLICACION")
                     input("PULSE INTRO PARA CONTINUAR")
                     #sys.exit(1)
@@ -246,7 +246,7 @@ def Cie(Fnc_Cnx):
             print(f"Error al cerrar la conexión: {e}")
 
 def YosCfg_Vfy():
-    print("YosCfg_Vfy() - 246")
+    print("Idd_BdtSvr.YosCfg_Vfy() - 250")
     import sqlite3
     Mem_Cnx_YosCfg = sqlite3.connect(os.path.join(YosCfg["Apl_Dir_Bdt"], "YosCfg.Bdt"))
     Mem_Cnx_YosCfg.row_factory = sqlite3.Row
@@ -259,20 +259,22 @@ def YosCfg_Vfy():
     # Creo Apl
     Mem_Sql = """
                 CREATE TABLE IF NOT EXISTS "Apl" (
-                    "cNom"  VARCHAR(60),
-                    "cEtnApl"   VARCHAR(3),
-                    "cEtnAplLet"    VARCHAR(25),
-                    "cVsn"  VARCHAR(8),
-                    "cCpy"  VARCHAR(50),
-                    "cCpyEml"   VARCHAR(50),
-                    "cObs"  VARCHAR(100),
+                    "cNom"          TEXT(60),
+                    "cEtnApl"       TEXT(3),
+                    "cEtnAplLet"    TEXT(25),
+                    "cVsn"          TEXT(8),
+                    "cCpy"          TEXT(50),
+                    "cCpyEml"       TEXT(50),
+                    "cObs"          TEXT(100),
                     "cModRegNik"    TEXT(20),
                     "cModRegTim"    TEXT(20))
                 """
     Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
     Mem_Cnx_YosCfg.commit()
     DateTime=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    Mem_Sql = f"""INSERT INTO "Apl" VALUES ('<<Nombre Aplicacion>>','Txt','dos_rebel','<<Version>>','<<©>>','<<Email Autor>>','','YosCfg','{DateTime}')"""
+    Mem_Vsn=datetime.now().strftime("%Y.%m")
+    Mem_Cpy=datetime.now().strftime("%Y")+" © Miguel Tortosa"
+    Mem_Sql = f"""INSERT INTO "Apl" VALUES ('{Mem_Ini_AplNom}','Txt','dos_rebel','{Mem_Vsn}','{Mem_Cpy}','mtcyos@yahoo.es','','YosCfg','{DateTime}')"""
     Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
     Mem_Cnx_YosCfg.commit()
 
@@ -309,38 +311,38 @@ def YosCfg_Vfy():
                 """
     Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
     Mem_Cnx_YosCfg.commit()
+    DateTime=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    Mem_Sql = f"""INSERT INTO "Dat" VALUES ('Apl_AdmPas','CONTRASEÑA DEL ADMINISTRADOS EN md5','C','d71572b884515cac7538f4f93fa16275','','','','MODIFIQUELA PARA PONER LA SUYA','PARA MODIFCACIONES SIN CONTROL DE USUARIOS','YosCfg','{DateTime}')"""
+    Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
+    Mem_Cnx_YosCfg.commit()
 
     # Creo Mnu
     Mem_Sql = """
                 CREATE TABLE IF NOT EXISTS "Mnu" (
-                    "cMnu"  TEXT(25),
-                    "cNum"  TEXT(3),
-                    "cEtn"  TEXT(10),
-                    "cTxt"  TEXT(50),
-                    "cFnc"  TEXT(200),
+                    "cMnu"          TEXT(25),
+                    "cNum"          TEXT(3),
+                    "cTip"          TEXT(3),
+                    "cEtn"          TEXT(10),
+                    "cTxt"          TEXT(50),
+                    "cFnc"          TEXT(200),
+                    "cObs"          TEXT(100),
                     "cModRegNik"    TEXT(20),
                     "cModRegTim"    TEXT(20))
                 """
     Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
     Mem_Cnx_YosCfg.commit()
     DateTime=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    Mem_Sql = f"""INSERT INTO "Mnu" VALUES ('Main','00',NULL,'ENTORNO',NULL,'YosCfg','{DateTime}')"""
+    Mem_Sql = (f"""
+                INSERT INTO 'Mnu' VALUES
+                    ('Main', "00", 'Cab', NULL, 'ENTORNO',            NULL,                             '', 'YosCfg', '{DateTime}'),
+                    ('Main', "01", 'Opc', NULL, 'RECARGAR MENU',      'YosMnuCag',                      '', 'YosCfg', '{DateTime}'),
+                    ('Main', "05", 'Opc', NULL, 'CONTACTENOS',        'Yos.EmlEnv("mtcyos@yahoo.es")',  '', 'YosCfg', '{DateTime}'),
+                    ('Main', "06", 'Opc', NULL, 'LICENCIA',           'Yos.AcdRes()',                   '', 'YosCfg', '{DateTime}'),
+                    ('Main', "07", 'Opc', NULL, 'ACERCA DE ...',      'Yos.Acd()',                      '', 'YosCfg', '{DateTime}'),
+                    ('Main', "08", 'Opc', NULL, 'MODIFICAR ENTORNO',  'Yos.AcdEtn()',                   '', 'YosCfg', '{DateTime}'),
+                    ('Main', "09", 'Opc', NULL, 'SALIR',              'Yos.Apl_Fin()',                  '', 'YosCfg', '{DateTime}');
+            """)
     Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
-    Mem_Sql = f"""INSERT INTO "Mnu" VALUES ('Main','01',NULL,'RECARGAR MENU','YosMnuCag','YosCfg','{DateTime}')"""
-    Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
-    Mem_Sql = f"""INSERT INTO "Mnu" VALUES ('Main','02',NULL,'MODIFICAR MENU','YosMnuCag','YosCfg','{DateTime}')"""
-    Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
-    Mem_Sql = f"""INSERT INTO "Mnu" VALUES ('Main','05',NULL,'CONTACTENOS','Yos.EmlEnv("mtcyos@yahoo.es")','YosCfg','{DateTime}')"""
-    Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
-    Mem_Sql = f"""INSERT INTO "Mnu" VALUES ('Main','06',NULL,'LICENCIA','Yos.AcdRes()','YosCfg','{DateTime}')"""
-    Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
-    Mem_Sql = f"""INSERT INTO "Mnu" VALUES ('Main','07',NULL,'ENTORNO','Yos.AcdEtn()','YosCfg','{DateTime}')"""
-    Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
-    Mem_Sql = f"""INSERT INTO "Mnu" VALUES ('Main','08',NULL,'ACERCA DE ...','Yos.Acd()','YosCfg','{DateTime}')"""
-    Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
-    Mem_Sql = f"""INSERT INTO "Mnu" VALUES ('Main','09',NULL,'SALIR','Yos.Apl_Fin()','YosCfg','{DateTime}')"""
-    Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
-
     Mem_Cnx_YosCfg.commit()
 
     Cie(Mem_Cnx_YosCfg)

@@ -4,7 +4,7 @@ import importlib
 import subprocess
 
 # Modulos que necesita la aplicacion
-Mdl=("pip","psutil","pytimedinput","pyfiglet","colorama","django","pypyodbc")
+Mdl=("pip","psutil","pytimedinput","pyfiglet","colorama","textual","django","pypyodbc")
 
 # pip uninstall moco
 
@@ -30,5 +30,6 @@ from .Yos_Cfg import *
 from .Yos_Frm import *
 from .Yos_Acd import *
 from .Yos_Ini import *
+from .Yos_MnuTxt import *
 from .Yos_Mnu import *
 from .Idd_BdtSvr import *
