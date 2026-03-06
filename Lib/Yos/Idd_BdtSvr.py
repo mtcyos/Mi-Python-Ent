@@ -107,7 +107,7 @@ def Cnx(Fnc_Svr, Fnc_Mod="ro"):
                 # Validamos existencia física
                 SvrDir = os.path.join(YosCfg["Apl_Dir_Bdt"], Fnc_Svr + ".Bdt")
                 if not os.path.exists(SvrDir):
-                    print(f"ERROR: NO EXISTE LA BASE DE DATOS : ./Bdt/{Fnc_Svr}.Bdt")
+                    print(f"ATENCION: NO EXISTE LA BASE DE DATOS : ./Bdt/{Fnc_Svr}.Bdt")
                     # Verifico que EXISTAN las tablas de SQLite.Yos.cfg
                     YosCfg_Vfy()
                     SvrDir = os.path.join(YosCfg["Apl_Dir_Bdt"], Fnc_Svr + ".Bdt")
@@ -245,6 +245,32 @@ def Cie(Fnc_Cnx):
         except Exception as e:
             print(f"Error al cerrar la conexión: {e}")
 
+def IptSql(Fnc_Ach, Fnc_Cnx, Fnc_Dat=None):
+    """
+    Lee un archivo .sql desde el directorio Yos/Sql
+    """
+    Mem_Dat = os.path.join(YosCfg["Yos_Dir"], "_Sql", Fnc_Ach + ".sql")
+    Mem_Sql = os.path.abspath(Mem_Dat)
+
+    try:
+        with open(Mem_Sql, 'r', encoding='utf-8') as archivo:
+            Mem_Contenido = archivo.read()
+
+            # Si enviamos un diccionario de datos, aplicamos el formato (la "f")
+            if Fnc_Dat:
+                return Mem_Contenido.format(**Fnc_Dat)
+
+            return Mem_Contenido
+
+    except FileNotFoundError:
+        input(f"ERROR: No se encontró el archivo SQL en: {Mem_Sql}")
+        Cie(Fnc_Cnx)
+        Mem_Sql = os.path.join(YosCfg["Apl_Dir_Bdt"], "YosCfg.Bdt")
+        os.remove(Mem_Sql)
+        import sys
+        sys.exit(0)
+        return "Err"
+
 def YosCfg_Vfy():
     print("Idd_BdtSvr.YosCfg_Vfy() - 250")
     import sqlite3
@@ -256,93 +282,85 @@ def YosCfg_Vfy():
 
     from datetime import datetime
     # Verifico que las tablas de Yos.cfg SQLite
+
     # Creo Apl
-    Mem_Sql = """
-                CREATE TABLE IF NOT EXISTS "Apl" (
-                    "cNom"          TEXT(60),
-                    "cEtnApl"       TEXT(3),
-                    "cEtnAplLet"    TEXT(25),
-                    "cVsn"          TEXT(8),
-                    "cCpy"          TEXT(50),
-                    "cCpyEml"       TEXT(50),
-                    "cObs"          TEXT(100),
-                    "cModRegNik"    TEXT(20),
-                    "cModRegTim"    TEXT(20))
-                """
+    print("Creando Apl")
+    Mem_Sql = IptSql("Apl_Cre", Mem_Cnx_YosCfg)
     Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
     Mem_Cnx_YosCfg.commit()
-    DateTime=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    Mem_Vsn=datetime.now().strftime("%Y.%m")
-    Mem_Cpy=datetime.now().strftime("%Y")+" © Miguel Tortosa"
-    Mem_Sql = f"""INSERT INTO "Apl" VALUES ('{Mem_Ini_AplNom}','Txt','dos_rebel','{Mem_Vsn}','{Mem_Cpy}','mtcyos@yahoo.es','','YosCfg','{DateTime}')"""
+
+    # Creo un diccionario para las sustituciones del .sql
+    Mem_Dic = {
+        "Mem_Ini_AplNom": Mem_Ini_AplNom,
+        "Mem_Vsn": datetime.now().strftime("%Y.%m"),
+        "Mem_Cpy": datetime.now().strftime("%Y")+" © Miguel Tortosa",
+        "Usr": "YosCfg",
+        "DateTime": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+    Mem_Sql = IptSql("Apl_Cre_Dat", Mem_Cnx_YosCfg, Mem_Dic)
     Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
     Mem_Cnx_YosCfg.commit()
 
     # Creo Bdt
-    Mem_Sql = """
-                CREATE TABLE IF NOT EXISTS "Bdt" (
-                    "cSvr"  VARCHAR(9),
-                    "cSvrTip"   VARCHAR(10),
-                    "cDir"  VARCHAR(100),
-                    "cUsr"  VARCHAR(25),
-                    "cPas"  VARCHAR(25),
-                    "cBdt"  Text(20),
-                    "cObs"  VARCHAR(100),
-                    "cModRegNik"    TEXT(20),
-                    "cModRegTim"    TEXT(20))
-                """
+    print("Creando Bdt")
+    Mem_Sql = IptSql("Bdt_Cre", Mem_Cnx_YosCfg)
     Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
     Mem_Cnx_YosCfg.commit()
 
     # Creo Dat
-    Mem_Sql = """
-                CREATE TABLE IF NOT EXISTS "Dat" (
-                    "cNom"  VARCHAR(60),
-                    "cDes"  VARCHAR(100),
-                    "cTipClm"   VARCHAR(1),
-                    "cVal"  VARCHAR(253),
-                    "cValPmd"   VARCHAR(100),
-                    "cLonClm"   VARCHAR(3),
-                    "cAli"  VARCHAR(1),
-                    "cObs"  VARCHAR(100),
-                    "cObsSis"   VARCHAR(100),
-                    "cModRegNik"    TEXT(20),
-                    "cModRegTim"    TEXT(20))
-                """
+    print("Creando Dat")
+    Mem_Sql = IptSql("Dat_Cre", Mem_Cnx_YosCfg)
     Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
     Mem_Cnx_YosCfg.commit()
-    DateTime=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    Mem_Sql = f"""INSERT INTO "Dat" VALUES ('Apl_AdmPas','CONTRASEÑA DEL ADMINISTRADOS EN md5','C','d71572b884515cac7538f4f93fa16275','','','','MODIFIQUELA PARA PONER LA SUYA','PARA MODIFCACIONES SIN CONTROL DE USUARIOS','YosCfg','{DateTime}')"""
+
+    # Creo un diccionario para las sustituciones del .sql
+    Mem_Dic = {
+        "Usr": "YosCfg",
+        "DateTime": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+    Mem_Sql = IptSql("Dat_Cre_Dat", Mem_Cnx_YosCfg, Mem_Dic)
     Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
     Mem_Cnx_YosCfg.commit()
 
     # Creo Mnu
-    Mem_Sql = """
-                CREATE TABLE IF NOT EXISTS "Mnu" (
-                    "cMnu"          TEXT(25),
-                    "cNum"          TEXT(3),
-                    "cTip"          TEXT(3),
-                    "cEtn"          TEXT(10),
-                    "cTxt"          TEXT(50),
-                    "cFnc"          TEXT(200),
-                    "cObs"          TEXT(100),
-                    "cModRegNik"    TEXT(20),
-                    "cModRegTim"    TEXT(20))
-                """
+    print("Creando Mnu")
+    Mem_Sql = IptSql("Mnu_Cre", Mem_Cnx_YosCfg)
     Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
     Mem_Cnx_YosCfg.commit()
-    DateTime=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    Mem_Sql = (f"""
-                INSERT INTO 'Mnu' VALUES
-                    ('Main', "00", 'Cab', NULL, 'ENTORNO',            NULL,                             '', 'YosCfg', '{DateTime}'),
-                    ('Main', "01", 'Opc', NULL, 'RECARGAR MENU',      'YosMnuCag',                      '', 'YosCfg', '{DateTime}'),
-                    ('Main', "05", 'Opc', NULL, 'CONTACTENOS',        'Yos.EmlEnv("mtcyos@yahoo.es")',  '', 'YosCfg', '{DateTime}'),
-                    ('Main', "06", 'Opc', NULL, 'LICENCIA',           'Yos.AcdRes()',                   '', 'YosCfg', '{DateTime}'),
-                    ('Main', "07", 'Opc', NULL, 'ACERCA DE ...',      'Yos.Acd()',                      '', 'YosCfg', '{DateTime}'),
-                    ('Main', "08", 'Opc', NULL, 'MODIFICAR ENTORNO',  'Yos.AcdEtn()',                   '', 'YosCfg', '{DateTime}'),
-                    ('Main', "09", 'Opc', NULL, 'SALIR',              'Yos.Apl_Fin()',                  '', 'YosCfg', '{DateTime}');
-            """)
+
+    Mem_Sql = IptSql("Mnu_Cre_Dat", Mem_Cnx_YosCfg, Mem_Dic)
+    Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
+    Mem_Cnx_YosCfg.commit()
+
+    # Creo Ord
+    print("Creando Ord")
+    Mem_Sql = IptSql("Ord_Cre", Mem_Cnx_YosCfg)
+    Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
+    Mem_Cnx_YosCfg.commit()
+
+    Mem_Sql = IptSql("Ord_Cre_Dat", Mem_Cnx_YosCfg, Mem_Dic)
+    Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
+    Mem_Cnx_YosCfg.commit()
+
+    # Creo Brw
+    print("Creando Brw")
+    Mem_Sql = IptSql("Brw_Cre", Mem_Cnx_YosCfg)
+    Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
+    Mem_Cnx_YosCfg.commit()
+
+    Mem_Sql = IptSql("Brw_Cre_Dat", Mem_Cnx_YosCfg, Mem_Dic)
+    Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
+    Mem_Cnx_YosCfg.commit()
+
+    # Creo ClmMod
+    print("Creando ClmMod")
+    Mem_Sql = IptSql("ClmMod_Cre", Mem_Cnx_YosCfg)
+    Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
+    Mem_Cnx_YosCfg.commit()
+
+    Mem_Sql = IptSql("ClmMod_Cre_Dat", Mem_Cnx_YosCfg, Mem_Dic)
     Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
     Mem_Cnx_YosCfg.commit()
 
     Cie(Mem_Cnx_YosCfg)
+    print("CONTRASEÑA DEL ADMINISTRADOR = Admin1967")

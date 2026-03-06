@@ -4,7 +4,18 @@ import importlib
 import subprocess
 
 # Modulos que necesita la aplicacion
-Mdl=("pip","psutil","pytimedinput","pyfiglet","colorama","textual","django","pypyodbc")
+Mdl=("pip","psutil","pytimedinput","pyfiglet","colorama","textual","django","pypyodbc","fpdf","pyperclip")
+
+# pip
+# psutil
+# pytimedinput
+# pyfiglet
+# colorama
+# textual
+# django
+# pypyodbc
+# fpdf
+# pyperclip - Copiar en el portapapeles
 
 # pip uninstall moco
 
@@ -30,6 +41,10 @@ from .Yos_Cfg import *
 from .Yos_Frm import *
 from .Yos_Acd import *
 from .Yos_Ini import *
-from .Yos_MnuTxt import *
+from .Yos_Mnu_Txt import *
 from .Yos_Mnu import *
+
 from .Idd_BdtSvr import *
+from .Idd_TabMod_Txt import *
+from .Idd_TabMod import *
+from .Idd_YosCtr import *

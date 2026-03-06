@@ -220,3 +220,24 @@ def capturar_texto_multilinea():
 
     texto_final = "\n".join(lineas)
     return texto_final
+# -*- coding: utf-8 -*-
+# Tim - 2026Mar03 14:15:00
+# Bin > Portapapeles Universal (Win, Linux, Mac)
+
+def Yos_ClipCopy(texto):
+    import pyperclip
+    """
+    Copia cualquier cadena al portapapeles del sistema operativo actual.
+    """
+    try:
+        # 1. Limpiamos espacios laterales para evitar errores de pegado
+        cadena = str(texto).strip()
+
+        # 2. Comando universal
+        pyperclip.copy(cadena)
+
+        return True
+    except Exception as e:
+        input(f"Error Portapapeles: {e}")
+        return False
+

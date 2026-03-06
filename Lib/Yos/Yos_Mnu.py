@@ -23,70 +23,92 @@ from textual.widgets import Button, Static
 from textual.containers import Horizontal, Vertical, Container
 
 CSS_MNU = """
+/* Pantalla base plana */
 Screen {
-    background: $background;
+    align: center middle;
+    background: $surface;
 }
+
 #rotulo-app {
     text-align: center;
-    color: $text;
+    color: $accent;
     text-style: bold;
     padding: 0 1;
+    margin-bottom: 0;
 }
+
 #marco {
-    border: double $warning;
-    padding: 1 2;
+    border: none;
+    padding: 0 2;
     width: 100%;
     height: 100%;
     background: $surface;
 }
+
 #titulo-app {
     text-align: center;
     color: $warning;
     text-style: bold;
     padding: 0 1;
+    background: transparent;
+    height: 1;
+    margin-top: 0;
 }
+
 #copyright {
     text-align: center;
     color: $warning;
     text-style: italic;
+    background: transparent;
+    height: 1;
+    content-align: center middle;
 }
+
 #fila-cols {
     width: 100%;
     height: 1fr;
+    margin: 0;
+    padding: 0;
 }
+
 .col {
-    border: double $primary;
-    padding: 0 1;
-    margin: 0 1;
+    padding: 0;
+    margin: 0;
     width: 1fr;
+    background: $surface;
 }
+
 .titulo-col {
     text-align: center;
     text-style: bold;
-    background: $primary-darken-2;
+    color: #AF87FF;
+    background: $surface-darken-1;
     padding: 0 1;
+    margin: 0;
     width: 100%;
+    height: 1;
 }
+
 Button {
     width: 100%;
-    background: transparent;
     border: none;
-    color: $accent;
+    background: $primary;
+    color: white;
     text-align: left;
     content-align: left middle;
     height: 1;
-    padding: 0 1;
     margin: 0;
+    padding: 0 1;
 }
+
 Button:hover {
-    background: $primary-darken-1;
-    color: $text;
-    content-align: left middle;
+    background: $primary-lighten-1;
+    color: white;
 }
+
 Button:focus {
     background: $accent;
-    color: $background;
-    content-align: left middle;
+    color: black;
 }
 """
 

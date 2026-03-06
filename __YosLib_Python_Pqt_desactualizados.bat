@@ -8,31 +8,33 @@ call %ApDir%Lib\Yos\YosAccDirPth.bat %ApDir%
 
 :: Muestro lo desactualizado
 
+del __YosLib_Python_Pqt_Actualizar.bat
+
 echo  LISTA DE DESACTUALIZADOS
 echo **************************
 pip list --outdated
 echo **************************
 
-echo on
+echo SI NO HAY NADA, PARA AQUI
+pause
 
 echo. 
-echo CREAMOS __YosLib_Python_Lib_Actualizar.bat
-echo Poner en cada libreria
-echo "pip install --upgrade <nombre_libreria>"
+echo CREAMOS __YosLib_Python_Pqt_Actualizar.bat
 
-pause
+echo @echo off > __YosLib_Python_Pqt_Actualizar.bat
+echo cd _Python >> __YosLib_Python_Pqt_Actualizar.bat
+echo echo ACTUALIZANDO Paquetes de Python >> __YosLib_Python_Pqt_Actualizar.bat
+
 :: Sincronización del Sistema Yos
-echo Creando script de actualización...
+echo Creando script de actualizacion...
 
 (for /f "skip=2 tokens=1" %%i in ('python.exe -m pip list --outdated') do (
     echo python.exe -m pip install --upgrade %%i
-)) > __YosLib_Python_Pqt_Actualizar.bat
+)) >> __YosLib_Python_Pqt_Actualizar.bat
 
-dir
-pause
-pip list --outdated > __YosLib_Python_Lib_Actualizar.bat
-pause
-python.exe -m pip list --outdated --format=freeze > Actualizar_Librerias.bat
+echo cd.. >> __YosLib_Python_Pqt_Actualizar.bat
+echo del __YosLib_Python_Pqt_Actualizar.bat >> __YosLib_Python_Pqt_Actualizar.bat
 
-pause
+echo.
+echo AHORA EJECUTE __YosLib_Python_Pqt_Actualizar.bat
 pause

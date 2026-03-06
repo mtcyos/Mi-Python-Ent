@@ -21,7 +21,7 @@ import os
 
 from colorama import Fore, Style
 
-def MnuTxt(Fnc_Mnu= YosCfg["Apl_Mnu"]):
+def Mnu_Txt(Fnc_Mnu):
     """
     Menú dinámico con persistencia.
     Se mantiene ejecutándose hasta que se elige una función externa.

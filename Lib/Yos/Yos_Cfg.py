@@ -43,12 +43,13 @@ YosCfg["Dbg"]="" # MODO DEPURACION S="Completo"
 # Entorno de la Aplicacion
 YosCfg["Etn"]=platform.system()
 YosCfg["Etn_Des"]=platform.platform()
+
 YosCfg["Etn_Tmp"]=tempfile.gettempdir()
 
 # Aplicacion
 YosCfg["Apl_Apl"]       ="" # Nombre de la Aplicacion
 YosCfg["Apl_Tit"]       ="" # TITULO de la Aplicacion
-YosCfg["Apl_Etn"]       ="" # Entorno de la Aplicacion Txt=Modo Terminal, Www=Web
+YosCfg["Apl_Etn"]       ="" # Entorno de la Aplicacion Txt=Texto, Gui=Texto con raton, Www=Web
 YosCfg["Apl_Etn_Lon"]   =0 # Si el Entorno es Txt, Ancho de la pantalla (Longitud), no poner nada, se calcula
 YosCfg["Apl_Etn_Let"]   ="" #"dos_rebel","banner3"# Si el Entorno es Txt, Tipo de letra para el Rotulo, Modulo pyfiglet
 YosCfg["Apl_Nom"]       ="" # Nombre EXTENDIDO de la aplicacion
@@ -67,7 +68,10 @@ YosCfg["Yos_Vsn"]="2026.01"
 YosCfg["Yos_CpyEml"]="mtcyos@yahoo.es"
 YosCfg["Yos_Cpy"]=YosCfg["Yos_Vsn"][:4]+" © Miguel Tortosa"
 
-YosCfg["Yos_Dir_Img"]=YosCfg["Apl_Dir"]+"../Lib/YosLib/img/"
+YosCfg["Yos_Dir"] = os.path.abspath(YosCfg["Apl_Dir"]+"../Lib/Yos/")
+# Bases de Datos "_Bdt"
+# Imagenes "img/"
+# Sql "_Sql"
 
 # Usuario
 YosCfg["Usr_Nik"] = "" # Usuario
@@ -83,7 +87,7 @@ Mem_Cur_YosCfg = Mem_Cnx_YosCfg.cursor()
 
 import sys
 #YosCfg["Apl_Apl"], Mem_Dat = os.path.splitext(os.path.basename(sys.argv[0])) # Recupero el nombre del Script Inicial
-YosCfg["Apl_Apl"]=Mem_Ini_AplNom
+YosCfg["Apl_Apl"]=Mem_Ini_AplCod
 
 Mem_Sql = "SELECT * FROM Apl LIMIT 1"
 Mem_Dat = Sel(Mem_Cur_YosCfg, Mem_Sql)
@@ -150,8 +154,12 @@ from Yos.Yos_Ini import MnuRec
 MnuRec("Main")
 
 #input(dict(YosCfg))
+#Mem_Sub="Apl_"
+#Mem_Sub=""
+#print("--------------------------------------------------")
+#print(f"{Mem_Sub}")
 #print("--------------------------------------------------")
 #print({k: v for k, v in YosCfg.items() if k.startswith("Apl_Bdt_")})
-#print("\n".join([f"{k}: {v}" for k, v in YosCfg.items() if k.startswith("Apl_")]))
+#print("\n".join([f"{k}: {v}" for k, v in YosCfg.items() if k.startswith(Mem_Sub)]))
 #print("--------------------------------------------------")
 #input("Fin")
