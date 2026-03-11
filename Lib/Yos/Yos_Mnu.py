@@ -33,7 +33,7 @@ Screen {
     text-align: center;
     color: $accent;
     text-style: bold;
-    padding: 0 1;
+    padding: 1 1 0 1;
     margin-bottom: 0;
 }
 
@@ -44,7 +44,6 @@ Screen {
     height: 100%;
     background: $surface;
 }
-
 #titulo-app {
     text-align: center;
     color: $warning;
@@ -53,6 +52,14 @@ Screen {
     background: transparent;
     height: 1;
     margin-top: 0;
+}
+#subtitulo-app {
+    text-align: center;
+    color: cyan;
+    text-style: italic;
+    width: 100%;         /* Obliga a ocupar toda la línea para poder centrar */
+    height: 1;           /* Define una altura fija de una fila */
+    margin-bottom: 0;
 }
 
 #copyright {
@@ -148,13 +155,15 @@ def _generar_rotulo():
         return YosCfg.get("Apl_Apl", "")
 
 
-def _construir_widgets(columnas, nom, cpy):
+def _construir_widgets(columnas, nom, cpy, subtit=""):
     rotulo = _generar_rotulo()          # <-- generamos el rótulo aquí
 
     def _compose(self):
         with Container(id="marco"):
             yield Static(rotulo, id="rotulo-app")   # <-- ASCII art
             yield Static(f" {nom} ", id="titulo-app")
+            if subtit:
+                yield Static(subtit, id="subtitulo-app")
             with Horizontal(id="fila-cols"):
                 for col in columnas:
                     with Vertical(classes="col"):
@@ -212,11 +221,12 @@ def Mnu(Fnc_Mnu=None):
         Fnc_Mnu = YosCfg["Apl_Mnu"]
 
     columnas   = _agrupar_menu(Fnc_Mnu, YosCfg.get("Ent", []))
-    nom        = YosCfg.get("Apl_Nom", "Aplicación")
+    nom        = YosCfg.get("Apl_Nom", "Aplicación")+ " - Usr : "+YosCfg.get("Usr_Nik", "Usuario")
+    subtit     = YosCfg.get("Apl_TitSub", "")
     cpy        = YosCfg.get("Apl_Cpy", "")
     salir_fnc  = next((i["fnc"] for col in columnas for i in col["items"] if i["txt"] == "SALIR"), "")
 
-    _fn_compose = _construir_widgets(columnas, nom, cpy)  # rótulo incluido
+    _fn_compose = _construir_widgets(columnas, nom, cpy, subtit)  # rótulo incluido
 
     def _fn_on_key(self, event):
         _on_key(self, event, salir_fnc)

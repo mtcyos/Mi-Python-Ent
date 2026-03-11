@@ -20,8 +20,9 @@
 #input({k: v for k, v in YosCfg.items() if k.startswith("Apl_Bdt_")})
 #print("--------------------------------------------------")
 
+from colorama import Fore, Back, Style
 
-from Yos.Yos_Frm import FrmCls, FrmWit
+from Yos.Yos_Frm import FrmCls, FrmWit, FrmLin
 from Yos.Yos_Ini import AplIni
 
 def Acd():
@@ -54,10 +55,10 @@ def Acd():
         FrmCls()
         AplIni()
         nLon=64
-        nLon_2=nLon-4
+        Mem_nLon=nLon-4
         print(f"{'*' * nLon:^{YosCfg["Apl_Etn_Lon"]}}")
         for lin in Acd:
-            Text=f"* {lin:<{nLon_2}} *"
+            Text=f"* {lin:<{Mem_nLon}} *"
             print(f"{Text:^{YosCfg["Apl_Etn_Lon"]}}")
         print(f"{'*' * nLon:^{YosCfg["Apl_Etn_Lon"]}}")
 #        Acd_Res("Dir")
@@ -87,10 +88,10 @@ def AcdRes(Fnc_Dat=""):
             FrmCls()
             AplIni()
         nLon=66
-        nLon_2=nLon-4
+        Mem_nLon=nLon-4
         print(f"{'*' * nLon:^{YosCfg["Apl_Etn_Lon"]}}")
         for lin in YosCfg["Apl_Res"]:
-            Text=f"* {lin:<{nLon_2}} *"
+            Text=f"* {lin:<{Mem_nLon}} *"
             print(f"{Text:^{YosCfg["Apl_Etn_Lon"]}}")
         print(f"{'*' * nLon:^{YosCfg["Apl_Etn_Lon"]}}")
         if not Fnc_Dat=="Dir":
@@ -98,64 +99,3 @@ def AcdRes(Fnc_Dat=""):
             FrmCls()
 
     return YosCfg["Apl_Res"]
-
-def AcdEtn():
-    if YosCfg["Dbg"]=="S": print("******** Yos.Acd() ********")
-    Acd=[]
-    # Entorno
-#    Acd.append("ACERCA DE ...")
-#    Acd.append("")
-
-    Acd.append("ENTORNO")
-    Acd.append("")
-    Acd.append("   S.O. : " +YosCfg["Etn"]+" - "+YosCfg["Etn_Des"])
-    Acd.append("")
-
-    Acd.append("DIRECTORIOS")
-    Acd.append("")
-
-    Acd.append("Dir.Apl : "+YosCfg["Apl_Dir"])
-    Acd.append("")
-
-    if YosCfg.get("Apl_Bdt_Sis_Dir"):
-        Acd.append("Yosis : " +YosCfg["Apl_Bdt_Sis_Dir"])
-        Acd.append("")
-
-    if YosCfg.get("Apl_Bdt_Msi_Dir"):
-        Acd.append("YosMsi : " +YosCfg["Apl_Bdt_Msi_Dir"])
-        Acd.append("")
-
-    if YosCfg.get("Apl_Bdt_Mrp_Dir"):
-        Acd.append("YosMrp : " +YosCfg["Apl_Bdt_Mrp_Dir"])
-        Acd.append("")
-
-    if YosCfg.get("Apl_Bdt_Mae_Dir"):
-        Acd.append("YosMae : " +YosCfg["Apl_Bdt_Mae_Dir"])
-        Acd.append("")
-
-    if YosCfg.get("Apl_Bdt_Dat_Dir"):
-        Acd.append("YosDat : " +YosCfg["Apl_Bdt_Dat_Dir"])
-        Acd.append("")
-
-    if YosCfg.get("Apl_Bdt_Ach_Dir"):
-        Acd.append("Archivo : " +YosCfg["Apl_Bdt_Ach_Dir"])
-        Acd.append("")
-
-    Acd.append("Dir.Tmp : " +YosCfg["Etn_Tmp"])
-
-    if YosCfg["Apl_Etn"]=="Txt":
-        FrmCls()
-        AplIni()
-        nLon=64
-        nLon_2=nLon-4
-        print(f"{'*' * nLon:^{YosCfg["Apl_Etn_Lon"]}}")
-        for lin in Acd:
-            Text=f"* {lin:<{nLon_2}} *"
-            print(f"{Text:^{YosCfg["Apl_Etn_Lon"]}}")
-        print(f"{'*' * nLon:^{YosCfg["Apl_Etn_Lon"]}}")
-#        Acd_Res("Dir")
-        FrmWit()
-        FrmCls()
-
-    return Acd
-

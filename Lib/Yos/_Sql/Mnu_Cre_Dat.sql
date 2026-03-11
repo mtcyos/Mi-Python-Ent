@@ -5,6 +5,6 @@ INSERT INTO 'Mnu' VALUES
         ('Main', "04", 'Opc', '', 'LICENCIA',           'Yos.AcdRes()',                  '', '{Usr}', '{DateTime}'),
         ('Main', "05", 'Opc', '', 'ACERCA DE ...',      'Yos.Acd()',                     '', '{Usr}', '{DateTime}'),
         ('Main', "06", 'Opc', '', '------------------', '',                              '', '{Usr}', '{DateTime}'),
-        ('Main', "07", 'Opc', '', 'MODIFICAR ENTORNO',  'Yos.YosCtr_Ent()',              '', '{Usr}', '{DateTime}'),
+        ('Main', "07", 'Opc', '', 'MODIFICAR ENTORNO',  'Yos.Yos_Ent()',                 '', '{Usr}', '{DateTime}'),
         ('Main', "08", 'Opc', '', '------------------', '',                              '', '{Usr}', '{DateTime}'),
         ('Main', '09', 'Opc', '', 'SALIR',              'Yos.Apl_Fin()',                 '', '{Usr}', '{DateTime}');

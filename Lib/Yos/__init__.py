@@ -43,8 +43,9 @@ from .Yos_Acd import *
 from .Yos_Ini import *
 from .Yos_Mnu_Txt import *
 from .Yos_Mnu import *
+from .Yos_Ent import *
 
 from .Idd_BdtSvr import *
 from .Idd_TabMod_Txt import *
 from .Idd_TabMod import *
-from .Idd_YosCtr import *
+

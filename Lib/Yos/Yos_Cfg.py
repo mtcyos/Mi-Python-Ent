@@ -50,16 +50,18 @@ YosCfg["Etn_Tmp"]=tempfile.gettempdir()
 YosCfg["Apl_Apl"]       ="" # Nombre de la Aplicacion
 YosCfg["Apl_Tit"]       ="" # TITULO de la Aplicacion
 YosCfg["Apl_Etn"]       ="" # Entorno de la Aplicacion Txt=Texto, Gui=Texto con raton, Www=Web
-YosCfg["Apl_Etn_Lon"]   =0 # Si el Entorno es Txt, Ancho de la pantalla (Longitud), no poner nada, se calcula
+YosCfg["Apl_Etn_Lon"]   = 0 # Si el Entorno es Txt, Ancho de la pantalla (Longitud), no poner nada, se calcula
 YosCfg["Apl_Etn_Let"]   ="" #"dos_rebel","banner3"# Si el Entorno es Txt, Tipo de letra para el Rotulo, Modulo pyfiglet
 YosCfg["Apl_Nom"]       ="" # Nombre EXTENDIDO de la aplicacion
 YosCfg["Apl_Vsn"]       ="" # Version de la Aplicacion
-YosCfg["Apl_Dir"]       =os.getcwd()  +"\\" # Directorio de la Aplicacion
-YosCfg["Apl_Dir_Bdt"]   =YosCfg["Apl_Dir"] +"Bdt\\"
+YosCfg["Apl_Dir"]       = os.getcwd()  +"\\" # Directorio de la Aplicacion
+YosCfg["Apl_Dir_Bdt"]   = YosCfg["Apl_Dir"] +"Bdt\\"
 YosCfg["Apl_Cpy"]       ="" # Copyright de la aplicacion
 YosCfg["Apl_CpyEml"]    ="" # Email del Autor de la Aplicacion
-YosCfg["Apl_Res"]="" # Documento de DE RESPONSABILIDAD
+YosCfg["Apl_Res"]       ="" # Documento de DE RESPONSABILIDAD
 YosCfg["Apl_Mnu"]       ="" # Menu de la Aplicacion Mnu.py
+
+YosCfg['Apl_TitSub'] = "" # Es para el menu , Muestra TITUTLO DEL SCRIPT , nombre del Script, no poner nada, se modifica  en los script
 
 # YosLib
 YosCfg["Yos_Apl"]="YosLib"
@@ -74,7 +76,8 @@ YosCfg["Yos_Dir"] = os.path.abspath(YosCfg["Apl_Dir"]+"../Lib/Yos/")
 # Sql "_Sql"
 
 # Usuario
-YosCfg["Usr_Nik"] = "" # Usuario
+import getpass
+YosCfg["Usr_Nik"] = getpass.getuser() # Usuario # **************************************************************** Modificar cuando halla MultiUsuario
 YosCfg["Usr_Pas"] = "" # Contraseña en md5
 YosCfg["Usr_Niv"] = "" # Nivel del Usuario
 

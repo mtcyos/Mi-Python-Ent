@@ -8,6 +8,8 @@ import sqlite3
 import os
 import re
 import sys
+import subprocess
+import tempfile
 from datetime import datetime
 from typing import List, Tuple, Optional, Dict, Any
 
@@ -15,7 +17,8 @@ from textual.app import App, ComposeResult
 from textual.screen import Screen
 from textual.widgets import (
     DataTable, Input, Static, Header, Footer,
-    Button, Label, Select, Checkbox, ListView, ListItem
+    Button, Label, Select, Checkbox, ListView, ListItem,
+    TextArea
 )
 from textual.containers import Container, Horizontal, Vertical, Grid
 from textual.reactive import reactive
@@ -112,33 +115,31 @@ def cargar_metadatos_tabla():
         nom_col = col_local[0]
         if nom_col in estructura_sql:
             info = estructura_sql[nom_col]
-            tipo_raw = str(info[2]).upper() # info[2] es el tipo que viene del motor
-            # 1. Extraer Longitud
+            tipo_raw = str(info[2]).upper()
+
+            # 1. PRIMERO: Determinar Tipo de Dato Yos (Universal)
+            if any(x in tipo_raw for x in ["CHAR", "TEXT", "CLOB", "STR"]):
+                tipo_yos = "C"
+            elif any(x in tipo_raw for x in ["INT", "SERIAL", "BIT"]):
+                tipo_yos = "N"
+            elif any(x in tipo_raw for x in ["DATE", "TIME"]):
+                tipo_yos = "D"
+            elif any(x in tipo_raw for x in ["DECIMAL", "NUMERIC", "DOUBLE", "FLOAT", "REAL", "MONEY"]):
+                tipo_yos = "M"
+            else:
+                tipo_yos = "C"
+
+            # 2. DESPUÉS: Extraer Longitud
             m = re.search(r'\((\d+)\)', tipo_raw)
             if m:
                 lon = int(m.group(1))
             else:
-                # Longitudes inteligentes por defecto si no hay (n)
-                if tipo_yos == "C": lon = 255  # Para un TEXT o VARCHAR sin tamaño
-                elif tipo_yos == "N": lon = 10   # Un INT estándar
-                elif tipo_yos == "D": lon = 10   # AAAA-MM-DD
-                elif tipo_yos == "M": lon = 15   # 999,999,999.99
+                if tipo_yos == "C": lon = 255
+                elif tipo_yos == "N": lon = 10
+                elif tipo_yos == "D": lon = 10
+                elif tipo_yos == "M": lon = 15
                 else: lon = 20
-            # 2. Determinar Tipo de Dato Yos (Universal)
-            # CARÁCTER: VARCHAR, TEXT, CHAR, NCHAR, CLOB, BPCHAR...
-            if any(x in tipo_raw for x in ["CHAR", "TEXT", "CLOB", "STR"]):
-                tipo_yos = "C"
-            # NUMÉRICO (Enteros): INT, SERIAL, SMALLINT, BIGINT, TINYINT...
-            elif any(x in tipo_raw for x in ["INT", "SERIAL", "BIT"]):
-                tipo_yos = "N"
-            # FECHAS: DATE, TIME, TIMESTAMP, INTERVAL, DATETIME...
-            elif any(x in tipo_raw for x in ["DATE", "TIME"]):
-                tipo_yos = "D"
-            # MONEDA/DECIMAL: DECIMAL, NUMERIC, DOUBLE, FLOAT, REAL, MONEY...
-            elif any(x in tipo_raw for x in ["DECIMAL", "NUMERIC", "DOUBLE", "FLOAT", "REAL", "MONEY"]):
-                tipo_yos = "M"
-            else:
-                tipo_yos = "C"  # Por defecto siempre Carácter para no fallar
+
             state.definiciones_mod.append((tipo_yos, lon))
         else:
             state.definiciones_mod.append(("C", 20))
@@ -379,7 +380,7 @@ class OrdenScreen(Screen):
             if idx is not None:
                 state.orden_actual = state.ordenes_disponibles[idx][1]
                 state.offset = 0
-                self.dismiss(True)  # <-- CAMBIO: De pop_screen a dismiss(True)
+                self.dismiss(True)
             else:
                 self.dismiss(False)
         else:
@@ -413,7 +414,7 @@ class BuscarScreen(Screen):
 
     def _actualizar_preview(self):
         busqueda = self.input.value
-        where_ftr = f"WHERE {state.orden_actual} LIKE '%{state.filtro}%'" if state.filtro else ""
+        where_ftr = f"WHERE {state.filtro}" if state.filtro else ""
         op_and = "AND" if where_ftr else "WHERE"
 
         # Buscar posición
@@ -460,10 +461,20 @@ class BuscarScreen(Screen):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn_ok":
             busqueda = self.input.value
-            # ... (tus cálculos de posición) ...
+
+            # CÁLCULO DE POSICIÓN (corregido)
+            where_ftr = f"WHERE {state.filtro}" if state.filtro else ""
+            op_and = "AND" if where_ftr else "WHERE"
+
+            state.cursor.execute(
+                f"SELECT COUNT(*) FROM {state.tabla_nombre} {where_ftr} {op_and} {state.orden_actual} < ? COLLATE NOCASE",
+                (busqueda,)
+            )
+            posicion = state.cursor.fetchone()[0]
+
             state.offset = max(0, posicion - (state.limite_filas // 2))
             state.fila_resaltada = busqueda
-            self.dismiss(True)  # <-- CAMBIO: De pop_screen a dismiss(True)
+            self.dismiss(True)
         else:
             self.dismiss(False)
 
@@ -489,11 +500,11 @@ class FiltroScreen(Screen):
         if event.button.id == "btn_ok":
             state.filtro = self.input.value
             state.offset = 0
-            self.dismiss(True)   # <-- CAMBIO
+            self.dismiss(True)
         elif event.button.id == "btn_clear":
             state.filtro = ""
             state.offset = 0
-            self.dismiss(True)   # <-- CAMBIO
+            self.dismiss(True)
         else:
             self.dismiss(False)
 
@@ -524,8 +535,337 @@ class LineasScreen(Screen):
         # Si llega aquí es porque canceló o hubo error
         self.dismiss(False)
 
+class ConfirmScreen(Screen):
+    """Screen modal simple de confirmación"""
+
+    def __init__(self, mensaje: str, callback=None):
+        super().__init__()
+        self.mensaje = mensaje
+        self.callback = callback
+
+    def compose(self) -> ComposeResult:
+        with Container(classes="dialog"):
+            yield Static(self.mensaje, classes="mensaje")
+            with Horizontal(classes="botones"):
+                yield Button("✅ Sí", variant="success", id="btn_si")
+                yield Button("❌ No", variant="error", id="btn_no")
+
+    def on_button_pressed(self, event: Button.Pressed):
+        resultado = event.button.id == "btn_si"
+        if self.callback:
+            self.callback(resultado)
+        self.app.pop_screen()
+
+class EmlEnvTextualScreen(Screen):
+    """
+    Screen que reimplementa EmlEnv usando widgets nativos de Textual.
+    Como EmlEnv tiene interacciones (inputs), la replicamos aquí en lugar
+    de intentar ejecutarla en modo consola.
+    """
+    BINDINGS = [
+        Binding("escape", "cancelar", "Cancelar"),
+        Binding("f2", "enviar", "Enviar"),
+    ]
+
+    def __init__(self, asunto_id: str, bloque_md: str):
+        super().__init__()
+        self.asunto_id = asunto_id
+        self.bloque_md = bloque_md
+        self.datos_email = {
+            'destinatario': '',
+            'su_nombre': '',
+            'su_email': '',
+            'asunto': f"Ficha: {asunto_id}",
+            'mensaje': bloque_md,
+            'agregar_info': False,
+            'info_adicional': ''
+        }
+
+    def compose(self) -> ComposeResult:
+        yield Header(show_clock=True)
+        yield Static(f"[green]📧 Enviar Email - Ficha: {self.asunto_id}[/]", classes="titulo")
+
+        with Vertical(classes="form_container"):
+            # Destinatario
+            with Horizontal(classes="campo_row"):
+                yield Static("[red]*[/] [yellow]EMAIL DESTINATARIO:[/]", classes="etiqueta")
+                yield Input(
+                    value=self.datos_email['destinatario'],
+                    placeholder="Uno: email@ejemplo.com | Varios: email1, email2, email3",
+                    id="input_destinatario"
+                )
+
+            # Su nombre
+            with Horizontal(classes="campo_row"):
+                yield Static("  [yellow]SU NOMBRE:[/]", classes="etiqueta")
+                yield Input(
+                    value=self.datos_email['su_nombre'],
+                    placeholder="Su nombre completo",
+                    id="input_su_nombre"
+                )
+
+            # Su email
+            with Horizontal(classes="campo_row"):
+                yield Static("  [yellow]SU EMAIL:[/]", classes="etiqueta")
+                yield Input(
+                    value=self.datos_email['su_email'],
+                    placeholder="su.email@ejemplo.com",
+                    id="input_su_email"
+                )
+
+            # Asunto
+            with Horizontal(classes="campo_row"):
+                yield Static("[red]*[/] [yellow]ASUNTO:[/]", classes="etiqueta")
+                yield Input(
+                    value=self.datos_email['asunto'],
+                    placeholder="Asunto del email",
+                    id="input_asunto"
+                )
+
+            # Checkbox para agregar info
+            yield Static(" ")
+            yield Checkbox(
+                "¿Añadir información adicional al mensaje?",
+                value=False,
+                id="chk_agregar_info"
+            )
+
+            # Info adicional (condicional)
+            with Horizontal(classes="campo_row", id="row_info_adicional"):
+                yield Static("  [yellow]INFO ADICIONAL:[/]", classes="etiqueta")
+                yield Input(
+                    value=self.datos_email['info_adicional'],
+                    placeholder="Información adicional a incluir",
+                    id="input_info_adicional"
+                )
+
+            yield Static(" ")
+            yield Static("[yellow]MENSAJE (pre-cargado desde el registro):[/]")
+
+            # Mensaje (TextArea para mejor edición)
+            yield TextArea(
+                text=self.datos_email['mensaje'],
+                id="text_mensaje",
+                show_line_numbers=True,
+                language="markdown"
+            )
+
+        yield Static(" ")
+
+        # Botones
+        with Horizontal(classes="botones"):
+            yield Button("📤 ENVIAR (F2)", variant="success", id="btn_enviar")
+            yield Button("❌ CANCELAR (Esc)", variant="error", id="btn_cancelar")
+
+        yield Footer()
+
+    def on_mount(self):
+        """Ocultar campo info adicional inicialmente"""
+        row_info = self.query_one("#row_info_adicional", Horizontal)
+        row_info.display = False
+
+    def on_checkbox_changed(self, event: Checkbox.Changed):
+        """Mostrar/ocultar campo info adicional"""
+        row_info = self.query_one("#row_info_adicional", Horizontal)
+        row_info.display = event.value
+
+    def action_enviar(self):
+        """Enviar el email"""
+        self._enviar_email()
+
+    def action_cancelar(self):
+        """Cancelar y volver"""
+        self.dismiss(False)
+
+    def on_button_pressed(self, event: Button.Pressed):
+        if event.button.id == "btn_enviar":
+            self._enviar_email()
+        else:
+            self.dismiss(False)
+
+    def _enviar_email(self):
+        """Valida y envía el email"""
+        # Recoger datos
+        destinatario = self.query_one("#input_destinatario", Input).value.strip()
+        su_nombre = self.query_one("#input_su_nombre", Input).value.strip()
+        su_email = self.query_one("#input_su_email", Input).value.strip()
+        asunto = self.query_one("#input_asunto", Input).value.strip()
+        mensaje = self.query_one("#text_mensaje", TextArea).text
+        agregar_info = self.query_one("#chk_agregar_info", Checkbox).value
+        info_adicional = self.query_one("#input_info_adicional", Input).value.strip()
+
+        # Validaciones
+        if not destinatario:
+            self.app.notify("❌ EMAIL DESTINATARIO es obligatorio", severity="error")
+            self.query_one("#input_destinatario", Input).focus()
+            return
+
+        if not asunto:
+            self.app.notify("❌ ASUNTO es obligatorio", severity="error")
+            self.query_one("#input_asunto", Input).focus()
+            return
+
+        if not mensaje.strip():
+            self.app.notify("❌ MENSAJE es obligatorio", severity="error")
+            self.query_one("#text_mensaje", TextArea).focus()
+            return
+
+        # Construir cuerpo final
+        cuerpo_final = ""
+        if su_nombre:
+            cuerpo_final += f"{su_nombre}\n"
+        if su_email:
+            cuerpo_final += f"Correo Electrónico : {su_email}\n"
+        if su_nombre or su_email:
+            cuerpo_final += "*****************************************\n"
+
+        if agregar_info and info_adicional:
+            cuerpo_final += f"{info_adicional}\n\n"
+
+        cuerpo_final += mensaje
+
+        # Mostrar pantalla de confirmación previa
+        self.app.push_screen(ConfirmarEnvioScreen(
+            destinatario=destinatario,
+            asunto=asunto,
+            cuerpo=cuerpo_final,
+            su_nombre=su_nombre,
+            su_email=su_email
+        ), self._procesar_resultado_envio)
+
+    def _procesar_resultado_envio(self, resultado: bool):
+        """Callback después de la pantalla de confirmación"""
+        if resultado:
+            self.dismiss(True)
+        # Si canceló, volvemos a la pantalla de edición
+
+class ConfirmarEnvioScreen(Screen):
+    """Pantalla de confirmación previa al envío (como en EmlEnv original)"""
+
+    def __init__(self, destinatario: str, asunto: str, cuerpo: str, su_nombre: str = "", su_email: str = ""):
+        super().__init__()
+        self.destinatario = destinatario
+        self.asunto = asunto
+        self.cuerpo = cuerpo
+        self.su_nombre = su_nombre
+        self.su_email = su_email
+
+    def compose(self) -> ComposeResult:
+        yield Static("[yellow]******************************[/]", classes="titulo")
+        yield Static("[yellow]*     VERIFIQUE EL EMAIL     *[/]")
+        yield Static("[yellow]******************************[/]")
+
+        yield Static(" ")
+        yield Static(f"[cyan]DESTINATARIO:[/] [white]{self.destinatario}[/]")
+        yield Static(" ")
+
+        if self.su_nombre:
+            yield Static(f"[cyan]SU NOMBRE:[/] [white]{self.su_nombre}[/]")
+        if self.su_email:
+            yield Static(f"[cyan]SU EMAIL:[/] [white]{self.su_email}[/]")
+        if self.su_nombre or self.su_email:
+            yield Static(" ")
+
+        yield Static(f"[cyan]ASUNTO:[/] [white]{self.asunto}[/]")
+        yield Static(" ")
+        yield Static("[cyan]MENSAJE:[/]")
+
+        # Mostrar mensaje con scroll si es largo
+        mensaje_preview = self.cuerpo[:500] + "..." if len(self.cuerpo) > 500 else self.cuerpo
+        yield Static(f"[dim]{mensaje_preview}[/]", classes="mensaje_preview")
+
+        yield Static(" ")
+
+        with Horizontal(classes="botones"):
+            yield Button("✅ CORRECTO - ENVIAR", variant="success", id="btn_enviar")
+            yield Button("❌ INCORRECTO - CANCELAR", variant="error", id="btn_cancelar")
+
+    def on_button_pressed(self, event: Button.Pressed):
+        if event.button.id == "btn_enviar":
+            # Aquí llamarías a la función real de envío
+            self._ejecutar_envio()
+        else:
+            self.dismiss(False)
+
+    def _ejecutar_envio(self):
+        """Ejecuta el envío real del email"""
+        try:
+            # Intentar importar y usar la función de envío de Yos
+            import smtplib
+            from email.message import EmailMessage
+
+            if not YosCfg.get("Eml_Svr", "").strip():
+                self.app.notify("❌ Servidor de correo no configurado en YosCfg", severity="error")
+                self.dismiss(False)
+                return
+
+            # Normalizar destinatarios
+            if isinstance(self.destinatario, str):
+                lista_dest = [d.strip() for d in self.destinatario.split(",") if d.strip()]
+            else:
+                lista_dest = self.destinatario
+
+            # Construir mensaje
+            msg = EmailMessage()
+            msg['Subject'] = self.asunto
+            msg['From'] = f'{YosCfg["Eml_EmlEnv"]} <{YosCfg["Eml_EmlEnv"]}>'
+            msg['To'] = ", ".join(lista_dest)
+
+            # Añadir cabecera y pie configurados
+            cuerpo_final = YosCfg.get("Eml_MsgCab", "").replace("\\n", "\n") + self.cuerpo + YosCfg.get("Eml_MsgPie", "").replace("\\n", "\n")
+            msg.set_content(cuerpo_final)
+
+            # Enviar
+            with smtplib.SMTP(YosCfg["Eml_Svr"], YosCfg.get("Eml_Puo", 587)) as server:
+                server.starttls()
+                server.login(YosCfg["Eml_Usr"], YosCfg["Eml_Pas"])
+                server.send_message(msg)
+
+            self.app.notify(f"✅ Email enviado a {len(lista_dest)} destinatario(s)", severity="information")
+            self.dismiss(True)
+
+        except Exception as e:
+            self.app.notify(f"❌ Error al enviar: {str(e)}", severity="error")
+            self.dismiss(False)
+
 class FormularioScreen(Screen):
     """Formulario de edición/creación/consulta/eliminación"""
+    BINDINGS = [
+        Binding("escape", "dismiss", "Volver"),
+        Binding("c", "copy_clipboard", "Clipboard |"),
+        Binding("e", "send_email", "Email |"),
+    ]
+
+    def action_copy_clipboard(self) -> None:
+        try:
+            import pyperclip
+            if self.datos_temp:
+                lineas = []
+                for col in state.columnas_mod:
+                    nombre_tecnico = col[0]
+                    titular = col[1]
+                    valor = self.datos_temp.get(nombre_tecnico, "")
+                    valor = valor if valor is not None else ""
+                    lineas.append(f"{str(titular)} : {valor}")
+
+                txt_ficha = "\n".join(lineas)
+                pyperclip.copy(txt_ficha)
+                self.app.notify("Registro al Clipboard", title="Clipboard")
+        except ImportError:
+            self.app.notify("pyperclip no instalado. Use: pip install pyperclip", severity="warning")
+
+    def action_send_email(self) -> None:
+        """Abre el screen de email nativo de Textual (reemplaza EmlEnv modo consola)"""
+        if not self.datos_temp:
+            return
+
+        # Preparar datos del registro
+        lineas = [f"{col[1]} : {self.datos_temp.get(col[0], '')}" for col in state.columnas_mod]
+        bloque_md = "\n".join(lineas)
+        asunto_id = self.datos_temp.get('cNom') or self.datos_temp.get('cTxt') or 'Registro'
+
+        # Abrir screen de email nativo (no modo consola)
+        self.app.push_screen(EmlEnvTextualScreen(asunto_id, bloque_md))
 
     def __init__(self, modo: str = "crear", registro: Optional[Tuple] = None):
         super().__init__()
@@ -563,7 +903,6 @@ class FormularioScreen(Screen):
             else:
                 es_modificable = False
 
-            # Ahora el indicador de NULO viene de la tabla ClmMod (cNul en col_def[3])
             val_nul = str(col_def[3]).strip().upper() if len(col_def) > 3 else ""
             es_obligatorio = (val_nul == "N")
 
@@ -589,7 +928,6 @@ class FormularioScreen(Screen):
                         opciones_limpias = [opt.strip() for opt in opciones_validas.split(",")]
                         opts = [(opt, opt) for opt in opciones_limpias]
 
-                        # Si `valor_inicial` no es una opción válida (ej. "" en modo crear), usar la primera
                         val_ini = valor_inicial if valor_inicial in opciones_limpias else (opciones_limpias[0] if opciones_limpias else None)
 
                         sel = Select(opts, value=val_ini, id=f"field_{nombre_col}")
@@ -619,9 +957,9 @@ class FormularioScreen(Screen):
             idx = db_col_names.index("cModRegTim") + 1
             modificado_val = str(self.registro[idx] if self.registro[idx] is not None else "")
 
-        if self.modo in ["crear", "modificar"]:
+        if self.modo == "crear":
             usuario_val = state.usuario_actual
-            modificado_val = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            modificado_val = datetime.now().strftime("%Y-%m-%d %H:%M:%S*")
 
         yield Static(" ")
 
@@ -648,10 +986,20 @@ class FormularioScreen(Screen):
                 yield Button("CANCELAR", variant="primary", id="btn_cancel")
             else:  # ver
                 yield Button("CERRAR", variant="primary", id="btn_cancel")
+                yield Button("CLIPBOARD (C)", variant="primary", id="btn_copy")
+                yield Button("EMAIL (E)", variant="primary", id="btn_email")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn_cancel":
             self.dismiss(False)
+            return
+
+        if event.button.id == "btn_copy":
+            self.action_copy_clipboard()
+            return
+
+        if event.button.id == "btn_email":
+            self.action_send_email()
             return
 
         if event.button.id == "btn_delete":
@@ -666,15 +1014,13 @@ class FormularioScreen(Screen):
         if event.button.id == "btn_save":
             # Validar y guardar
             if self._validar_datos():
-                # Bin > Solo llamamos a guardar, ella ya se encarga de cerrar
                 self._guardar_datos()
 
     def _validar_datos(self) -> bool:
         """Valida los datos del formulario"""
-        # Validar y recoger datos editables
         for col_def, tipo_def in zip(state.columnas_mod, state.definiciones_mod):
             nombre_col = col_def[0]
-            etiqueta = col_def[1] # Necesitamos la etiqueta para los mensajes de error
+            etiqueta = col_def[1]
             permiso = str(col_def[2]).strip()
             if self.modo == "crear":
                 es_modificable = permiso in ["Cre", "Mod"]
@@ -683,46 +1029,38 @@ class FormularioScreen(Screen):
             else:
                 es_modificable = False
 
-            # Chequeamos si el campo es obligatorio buscando su 'cNul' en col_def[3]
             val_nul = str(col_def[3]).strip().upper() if len(col_def) > 3 else ""
             es_obligatorio = (val_nul == "N")
 
             tipo_yos = tipo_def[0]
-            max_lon = tipo_def[1]  # Extraer longitud
+            max_lon = tipo_def[1]
 
             if not es_modificable:
-                # Si el campo no es modificable, mantenemos su valor original
-                # Excepto para los campos de auditoría que se gestionan aparte
                 if nombre_col not in ["cModRegNik", "cModRegTim"]:
                     self.datos_temp[nombre_col] = self.datos_temp.get(nombre_col, "")
                 continue
 
-            # Si es modificable, tratamos de recuperar el control UI
             control = self.inputs.get(nombre_col)
             if not control:
-                # Esto no debería pasar si el campo es modificable y se renderizó
                 continue
 
-            valor = str(control.value).strip() # Asegurarse de que es string y limpiar espacios
+            valor = str(control.value).strip()
 
-            # Validar obligatorios
             if es_obligatorio and not valor:
                 self.app.notify(f"El campo '{etiqueta}' es obligatorio.", severity="error")
                 control.focus()
                 return False
 
-            # Validar longitud
             if len(valor) > max_lon:
-                self.notify(f"{etiqueta} supera longitud máxima ({max_lon})", severity="error")
+                self.app.notify(f"{etiqueta} supera longitud máxima ({max_lon})", severity="error")
                 control.focus()
                 return False
 
-            # Validar opciones (si existen)
             opciones_validas = col_def[4] if len(col_def) > 4 else None
             if opciones_validas and valor:
                 opts = [o.strip() for o in opciones_validas.split(",")]
                 if valor not in opts:
-                    self.notify(f"{etiqueta}: valor no permitido", severity="error")
+                    self.app.notify(f"{etiqueta}: valor no permitido", severity="error")
                     return False
 
             self.datos_temp[nombre_col] = valor
@@ -730,17 +1068,23 @@ class FormularioScreen(Screen):
         return True
 
     def _guardar_datos(self) -> bool:
-        """Guarda los datos en la base de datos - Tim 2026Mar05"""
+        """Guarda los datos en la base de datos"""
+        # Fallback para Yos_TimeStamp si no está disponible
+        try:
+            from Yos import Yos_TimeStamp
+        except ImportError:
+            def Yos_TimeStamp(Fnc_Nue=None):
+                return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
         try:
             db_col_names = obtener_nombres_columnas_bd()
 
-            # Auditoría Yos
-            if "cModRegNik" in db_col_names:
-                self.datos_temp["cModRegNik"] = state.usuario_actual
-            if "cModRegTim" in db_col_names:
-                self.datos_temp["cModRegTim"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            if self.modo == "crear":
+                if "cModRegNik" in db_col_names:
+                    self.datos_temp["cModRegNik"] = state.usuario_actual
+                if "cModRegTim" in db_col_names:
+                    self.datos_temp["cModRegTim"] = Yos_TimeStamp(Fnc_Nue="Cre")
 
-            # Filtramos nAutInc para que SQLite lo maneje solo
             datos_guardar = {k: v for k, v in self.datos_temp.items() if k != "nAutInc"}
 
             if self.modo == "crear":
@@ -748,23 +1092,26 @@ class FormularioScreen(Screen):
                 placeholders = ", ".join(["?"] * len(datos_guardar))
                 query = f"INSERT INTO {state.tabla_nombre} ({cols}) VALUES ({placeholders})"
                 state.cursor.execute(query, list(datos_guardar.values()))
-                ultimo_rowid_insertado = state.cursor.lastrowid
 
-                # Posicionamiento seguro para resaltar el nuevo registro
                 try:
                     campo_orden = state.orden_actual
                     if campo_orden in datos_guardar:
                         busqueda = datos_guardar[campo_orden]
                         state.fila_resaltada = str(busqueda)
-                except: pass
+                except:
+                    pass
 
             elif self.modo == "modificar" and self.registro:
-                # Bin > Aplicando filtro cMod {Cre, Mod}
                 datos_finales = {}
                 for k, v in datos_guardar.items():
                     permiso = next((str(c[2]).strip() for c in state.columnas_mod if c[0] == k), "")
                     if permiso == "Mod":
                         datos_finales[k] = v
+
+                if "cModRegNik" in db_col_names:
+                    datos_finales["cModRegNik"] = state.usuario_actual
+                if "cModRegTim" in db_col_names:
+                    datos_finales["cModRegTim"] = Yos_TimeStamp()
 
                 if datos_finales:
                     set_clause = ", ".join([f"{k}=?" for k in datos_finales.keys()])
@@ -810,10 +1157,11 @@ Screen {
 /* Botones rectangulares simples (ASCII compatible) */
 Button {
     margin: 0 1;
-    border: none;        /* Adiós a los cuadros con ? */
+    border: none;
     background: $primary;
     color: white;
     height: 3;
+    min-width: 20;
 }
 
 Button:hover {
@@ -843,7 +1191,7 @@ Button:hover {
 #browse_table {
     height: 1fr;
     margin: 0;
-    border: none;       /* Eliminamos el borde de la tabla que falla en CMD */
+    border: none;
 }
 
 /* Barra de estado inferior plana */
@@ -858,7 +1206,7 @@ Button:hover {
 /* Inputs y Selects sólidos */
 Input, Select {
     width: 1fr;
-    border: solid $primary; /* Borde simple que todos los OS entienden */
+    border: solid $primary;
     background: $surface;
 }
 
@@ -876,6 +1224,67 @@ Select > SelectCurrent {
 
 SelectOverlay {
     border: solid $primary;
+}
+
+/* Estilos para ConfirmScreen modal */
+ConfirmScreen {
+    align: center middle;
+}
+
+ConfirmScreen > .dialog {
+    width: 60;
+    height: auto;
+    border: thick $background 80%;
+    background: $surface;
+    padding: 1 2;
+}
+
+ConfirmScreen > .dialog > .mensaje {
+    text-align: center;
+    margin: 1 0;
+}
+
+ConfirmScreen > .dialog > .botones {
+    align: center middle;
+    height: auto;
+}
+
+/* Estilos para EmlEnvTextualScreen */
+EmlEnvTextualScreen {
+    align: center middle;
+}
+
+EmlEnvTextualScreen > .form_container {
+    width: 80;
+    height: auto;
+    padding: 1;
+}
+
+EmlEnvTextualScreen > .form_container > .campo_row {
+    height: auto;
+    margin: 0 1;
+}
+
+EmlEnvTextualScreen #text_mensaje {
+    height: 15;
+    border: solid $primary;
+}
+
+EmlEnvTextualScreen #row_info_adicional {
+    display: none;
+}
+
+/* Estilos para ConfirmarEnvioScreen */
+ConfirmarEnvioScreen {
+    align: center middle;
+}
+
+ConfirmarEnvioScreen > .mensaje_preview {
+    width: 70;
+    height: 10;
+    border: solid $primary-darken-1;
+    padding: 1;
+    overflow: auto scroll;
 }
 """
 
@@ -912,7 +1321,8 @@ def Idd_TabMod(Fnc_Svr: str, Fnc_Tab: str, Fnc_Ord=None, Fnc_Brw=None, Fnc_ClmMo
     # Inicializar estado
     state.servidor = Fnc_Svr
     state.tabla_nombre = Fnc_Tab
-    state.usuario_actual = "YosCtr"
+    import getpass
+    state.usuario_actual = getpass.getuser()
     state.offset = 0
     state.limite_filas = 30
     state.filtro = ""

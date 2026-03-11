@@ -36,21 +36,64 @@ def Mnu_Txt(Fnc_Mnu):
         # FrmCls() debería tener: os.system('clear' if os.name != 'nt' else 'cls')
  #       FrmCls()
         AplIni()
-        print(f"{Style.RESET_ALL+Fore.YELLOW+YosCfg['Apl_Nom']:^{YosCfg["Apl_Etn_Lon"]}}")
+        from Yos import FrmLin
+        print(FrmLin(f"{Fore.YELLOW}{YosCfg['Apl_Nom']} - {Fore.GREEN}Usr : {YosCfg['Usr_Nik']}", 'C'))
+        if YosCfg['Apl_TitSub']:
+            print(f"{Fore.CYAN}{FrmLin(YosCfg['Apl_TitSub'], 'C')}")
+#        print(f"{Style.RESET_ALL+Fore.YELLOW+YosCfg['Apl_Nom']:^{YosCfg["Apl_Etn_Lon"]}}")
 
         ancho_total = YosCfg["Apl_Etn_Lon"]
 
-        # 1. Agrupar por decenas (0, 1, 8, 9)
+#        # 1. Agrupar por decenas (0, 1, 8, 9)
+#        grupos = {}
+#        items = sorted(Fnc_Mnu.items())
+#        for clave, valor in items:
+#            ent = valor.get("Ent", "")
+#            if ent == "" or ent in YosCfg["Ent"]:
+#                decena = clave[0]
+#                if decena not in grupos:
+#                    grupos[decena] = []
+#                grupos[decena].append({"id": clave, "txt": valor["Txt"], "fnc": valor["Fnc"]})
+#        print(grupos)
+#        print()
+
+        # 1. Preparar el agrupamiento por Tipo (Cab / Opc)
         grupos = {}
         items = sorted(Fnc_Mnu.items())
+        indice_grupo = -1
 
         for clave, valor in items:
+            # Filtro de entorno YosPrg
             ent = valor.get("Ent", "")
             if ent == "" or ent in YosCfg["Ent"]:
-                decena = clave[0]
-                if decena not in grupos:
-                    grupos[decena] = []
-                grupos[decena].append({"id": clave, "txt": valor["Txt"], "fnc": valor["Fnc"]})
+                tipo = valor.get("Tip")
+
+                # 1. Si es CABECERA: Creamos grupo nuevo Y la añadimos como primer item
+                if tipo == "Cab":
+                    indice_grupo += 1
+                    str_idx = str(indice_grupo)
+                    grupos[str_idx] = []
+
+                    # Aquí es donde recuperamos la Cabecera para la lista
+                    grupos[str_idx].append({
+                        "id": clave,
+                        "txt": valor["Txt"],
+                        "fnc": valor.get("Fnc", "") # Generalmente vacío en Cab
+                    })
+
+                # 2. Si es OPCIÓN: La añadimos al grupo que esté abierto
+                elif tipo == "Opc":
+                    if indice_grupo == -1: # Por si el diccionario no empieza con Cab
+                        indice_grupo = 0
+                        grupos["0"] = []
+
+                    grupos[str(indice_grupo)].append({
+                        "id": clave,
+                        "txt": valor["Txt"],
+                        "fnc": valor.get("Fnc", "")
+                    })
+
+#        print(grupos)
 
         # 2. Preparar columnas
         claves_grupos = sorted(grupos.keys())

@@ -272,7 +272,6 @@ def IptSql(Fnc_Ach, Fnc_Cnx, Fnc_Dat=None):
         return "Err"
 
 def YosCfg_Vfy():
-    print("Idd_BdtSvr.YosCfg_Vfy() - 250")
     import sqlite3
     Mem_Cnx_YosCfg = sqlite3.connect(os.path.join(YosCfg["Apl_Dir_Bdt"], "YosCfg.Bdt"))
     Mem_Cnx_YosCfg.row_factory = sqlite3.Row

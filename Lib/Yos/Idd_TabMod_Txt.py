@@ -1,28 +1,22 @@
 # -*- coding: utf-8 -*-
 import inspect
-import sqlite3
+#import sqlite3
 import os
 import re
 import sys
 import ctypes
-import msvcrt
 import locale
-from datetime import datetime
-from fpdf import FPDF
+import msvcrt
 
+from colorama import init, Fore, Style, Back
+init(autoreset=True)
+
+from Yos import FrmCls, FrmWit, FrmLin, AplIni, Yos_TimeStamp
 # 1. Configurar locale
 try:
     locale.setlocale(locale.LC_TIME, "")
 except:
     pass
-
-try:
-    from colorama import init, Fore, Style, Back
-    init(autoreset=True)
-except ImportError:
-    os.system('pip install colorama')
-    from colorama import init, Fore, Style, Back
-    init(autoreset=True)
 
 # =============================================================================
 # FUNCIONES DE APOYO
@@ -144,14 +138,19 @@ def formulario_yos(db_col_names, registro=None, solo_lectura=False, eliminar=Fal
             datos_temp[nom_col] = str(registro[idx_bd] if registro[idx_bd] is not None else "")
         else:
             datos_temp[nom_col] = ""
+    if registro:
+        reg_dict = dict(registro)
+        datos_temp['cModRegNik'] = reg_dict.get('cModRegNik', usuario_actual)
+        datos_temp['cModRegTim'] = reg_dict.get('cModRegTim', Yos_TimeStamp())
+    else:
+        datos_temp['cModRegNik'] = usuario_actual
+        datos_temp['cModRegTim'] = Yos_TimeStamp(Fnc_Nue="Cre")
 
     Mem_Lon_Cab = max(len(str(f[1])) for f in Mem_Tab_ClmMod)   # cCab
 
-    for aud in [("cModRegNik", usuario_actual), ("cModRegTim", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))]:
-        if aud[0] in db_col_names: datos_temp[aud[0]] = aud[1]
-
     while True:
         os.system('cls')
+
         if eliminar: titulo = " ELIMINAR "
         elif solo_lectura: titulo = " CONSULTAR "
         else: titulo = " MODIFICAR " if registro else " NUEVO "
@@ -193,20 +192,100 @@ def formulario_yos(db_col_names, registro=None, solo_lectura=False, eliminar=Fal
             ancho_real = t[1]
             guiones = "_" * max(0, ancho_real - len(valor_actual))
 
-            print(f"{prefix}{asterisco}{Fore.YELLOW}{etiqueta.ljust(Mem_Lon_Cab)} : {Fore.WHITE}{valor_actual}{Fore.BLACK}{guiones}")
+            print(f"{prefix}{asterisco}{Fore.YELLOW}{etiqueta.ljust(Mem_Lon_Cab)} : {Fore.WHITE}{valor_actual}")#{Fore.LIGHTBLACK_EX}{guiones}")
 
         print(f"\n   {Fore.CYAN}{'USUARIO'.ljust(Mem_Lon_Cab)} : {Fore.YELLOW}{datos_temp.get('cModRegNik','')}")
         print(f"   {Fore.CYAN}{'MODIFICADO'.ljust(Mem_Lon_Cab)} : {Fore.YELLOW}{datos_temp.get('cModRegTim','')}")
 
         if eliminar:
             return None
-        elif solo_lectura:
-            print(f"\n{Fore.GREEN}Cualquier tecla para salir..."); msvcrt.getch(); return None
 
-        print(f"\n{Fore.WHITE}Nº-Modificar | {Fore.GREEN}G-Grabar | {Fore.RED}S-Salir")
+        elif solo_lectura:
+            print(f"\n {Fore.WHITE}ENTER -> Volver | {Fore.YELLOW}C -> Copiar al Clipboard | {Fore.CYAN}E -> Envial Email{Style.RESET_ALL}")
+            opc_ver = input(f"\n {Fore.YELLOW}OPCIÓN > {Style.RESET_ALL}").strip().upper()
+
+            if opc_ver in [ 'C', 'E']:
+                ancho_max = len("CAMPO")
+                for f in Mem_Tab_ClmMod:
+                    if len(f[1]) > ancho_max:
+                        ancho_max = len(f[1])
+
+                bloque_md = f"**** TABLA: {globals().get('Mem_Tab_Nom')} - CONSULTA DE REGISTRO****\n"
+                bloque_md += f"| {'CAMPO'.ljust(ancho_max)} | Valor |\n"
+                bloque_md += "|------------------------------------------\n"
+
+                for f in Mem_Tab_ClmMod:
+                    titular = f[1].ljust(ancho_max) # Rellena con espacios hasta el máximo
+                    campo = f[0]
+                    valor = datos_temp.get(campo, "")
+                    val_limpio = str(valor).replace("|", "-") if valor else ""
+
+                    bloque_md += f"| {titular} : {val_limpio} \n"
+
+                if opc_ver=="C":
+                    from Yos import Yos_ClipCopy
+                    if Yos_ClipCopy(bloque_md):
+                        print(f'\n{Style.BRIGHT}{Fore.BLUE} [ OK ] Datos enviados al Portapapeles.')
+                    else:
+                        print(f'\n{Fore.RED} [ ERROR ] Los datos no se pudieron enviar al Portapapeles.')
+                    FrmWit()
+                else:
+                    from Yos import EmlEnv
+                    EmlEnv("", "", bloque_md)
+
+            return None
+
+        print(f"\n {Fore.WHITE}Nº -> Modificar | {Fore.CYAN}9999 -> En secuencia | {Fore.GREEN}G-Grabar | {Fore.RED}S-Salir")
         opc = input(f"\n{Fore.YELLOW} OPCIÓN > {Fore.RESET}").strip().upper()
 
-        if opc == 'G':
+        if opc == '9999':
+            pasos = sorted(mapeo_opciones.keys())
+            for n_paso in pasos:
+                f, t = mapeo_opciones[n_paso]
+                nom_col = f[0]
+                Pre_valor = datos_temp[nom_col]
+                Pre_LonTot = t[1]
+                es_obligatorio = (f[3] == "N")
+                opciones_validas = f[4]  # Aquí están tus 'Cab,Opc' o ',Windows,Linux'
+
+                txt_obligatorio = f"{Back.RED}{Fore.WHITE} OBLIGATORIO {Style.RESET_ALL}" if f[3] == 'N' else ""
+
+                print(f"\n {Back.YELLOW}{Fore.BLACK} PASO {n_paso}/{len(pasos)}: {f[1]} {Style.RESET_ALL} {txt_obligatorio}")
+
+                # Si existen opciones, las mostramos como ayuda
+                if opciones_validas:
+                    print(f" {Fore.CYAN}Opciones: {Fore.WHITE}{opciones_validas}")
+
+                val_str = str(Pre_valor) if Pre_valor is not None else ""
+                guiones = "_" * max(0, Pre_LonTot - len(val_str))
+                print(f" {Fore.WHITE}Valor Actual: {Pre_valor}{Fore.LIGHTBLACK_EX}{guiones}")
+                while True: # Bucle de validación por campo
+                    nuevo_val = input(f" {Fore.YELLOW}Nuevo Valor > {Fore.WHITE}").strip()
+
+                    # Si es ENTER, mantenemos el actual (si no es nulo obligatorio)
+                    if not nuevo_val:
+                        if es_obligatorio and not Pre_valor:
+                            print(f" {Fore.RED}ERROR: Campo obligatorio.")
+                            continue
+                        nuevo_val = Pre_valor
+                        break
+
+                    # Validaciones (Longitud y Opciones)
+                    if len(nuevo_val) > Pre_LonTot:
+                        print(f" {Fore.RED}ERROR: Máximo {Pre_LonTot} caracteres.")
+                        continue
+
+                    if opciones_validas:
+                        Mem_OpcVal = tuple(x.strip() for x in opciones_validas.split(','))
+                        if nuevo_val not in Mem_OpcVal:
+                            print(f" {Fore.RED}ERROR: Valor no permitido.")
+                            continue
+
+                    break # Todo bien, pasamos al siguiente campo
+
+                datos_temp[nom_col] = nuevo_val
+
+        elif opc == 'G':
             error_nn = False
             for i, f in enumerate(Mem_Tab_ClmMod):
                 t = Mem_Tab_ClmMod_Def[i]
@@ -263,7 +342,7 @@ def formulario_yos(db_col_names, registro=None, solo_lectura=False, eliminar=Fal
             guiones = "_" * max(0, Pre_LonTot - len(str(Pre_valor)))
             print(f"\n  {Fore.YELLOW}Modificar {f[1]} {f[4]} {asterisco}")
 #            print(f"\n  {Fore.YELLOW}Modificar {f[1]} {f[4] if f[4] else ''} {asterisco}")
-            print(f"   {Fore.WHITE}{Pre_valor}{guiones}")
+            print(f"   {Fore.WHITE}{Pre_valor}{Fore.LIGHTBLACK_EX}{guiones}")
 
             nuevo_val = input(f"{Fore.WHITE} > ").strip()
 
@@ -330,7 +409,8 @@ def Idd_TabMod_Txt(Fnc_Svr, Fnc_Tab,Fnc_Ord=None, Fnc_Brw=None,  Fnc_ClmMod=None
     if not Fnc_ClmMod:
         Fnc_ClmMod="Main"
 
-    usuario_actual = "YosCtr"
+    import getpass
+    usuario_actual = getpass.getuser() # **************************************************************** Modificar cuando halla MultiUsuario
     nLin = 30
     offset = 0
     fila_resaltada = None
@@ -381,7 +461,6 @@ def Idd_TabMod_Txt(Fnc_Svr, Fnc_Tab,Fnc_Ord=None, Fnc_Brw=None,  Fnc_ClmMod=None
         if nom_col in estruc_sql:
             info = estruc_sql[nom_col]
             tipo_raw = str(info[2]).upper() # info[2] es el tipo que viene del motor
-            print(tipo_raw)
 
             # 1. Extraer Longitud
             m = re.search(r'\((\d+)\)', tipo_raw)
@@ -419,11 +498,12 @@ def Idd_TabMod_Txt(Fnc_Svr, Fnc_Tab,Fnc_Ord=None, Fnc_Brw=None,  Fnc_ClmMod=None
         else:
             Mem_Tab_ClmMod_Def.append(("C", 20))
 
+#    print("512")
 #    print("Mem_Tab_Ord")
-#   print(Mem_Tab_Ord)
+#    print(Mem_Tab_Ord)
 #    print("Mem_Tab_Brw")
 #    print(Mem_Tab_Brw)
-#    print("Mem_Tab_ClmMod")
+#    print("512 Mem_Tab_ClmMod")
 #    print(Mem_Tab_ClmMod)
 #    print(Mem_Tab_ClmMod_Def)
 #    input("Fin")
@@ -457,7 +537,7 @@ def Idd_TabMod_Txt(Fnc_Svr, Fnc_Tab,Fnc_Ord=None, Fnc_Brw=None,  Fnc_ClmMod=None
 
         def b(d, t): return f"{Fore.WHITE}{d} {Fore.YELLOW}({t}){Fore.RESET} "
         SEP = f"{Fore.BLUE}|{Fore.RESET} "
-        print(f"{b(' Salir','S')}{SEP}{b('Primero','P')}{b('Avanzar','A')}{b('Retroceder','R')}{b('Ultimo','U')}{SEP}{b('Orden','Ord')}{b('Buscar','B')}{b('Filtro','Ftr')}{SEP}{b('Lineas Browse','Lb')}")
+        print(f"{b(' Salir','S')}{SEP}{b('Primero','P')}{b('Retroceder','R')}{b('Avanzar','A')}{b('Ultimo','U')}{SEP}{b('Orden','Ord')}{b('Buscar','B')}{b('Filtro','Ftr')}{SEP}{b('Lineas Browse','Lb')}")
         print(f"           {SEP}{b('Crear','C')}{b('Ver','nn,V')}{b('Modificar','nn,M')}{b('Eliminar','nn,E')}")
         print()
 
@@ -509,6 +589,13 @@ def Idd_TabMod_Txt(Fnc_Svr, Fnc_Tab,Fnc_Ord=None, Fnc_Brw=None,  Fnc_ClmMod=None
                 insert_data = {k: v for k, v in reg_nuevo.items() if k != "nAutInc"}
                 cols = ", ".join(insert_data.keys())
                 pls = ", ".join(["?"] * len(insert_data))
+#                print("598")
+#                print(cols)
+#                input(pls)
+                # añado
+#               cambios_finales['cModRegNik'] = usuario_actual
+#               cambios_finales['cModRegTim'] = Yos_TimeStamp(Fnc_Nue="")
+
                 Mem_Cur_YosCfg.execute(f"INSERT INTO {Mem_Tab_Nom} ({cols}) VALUES ({pls})", list(insert_data.values()))
                 Mem_Cnx_YosCfg.commit()
         elif ',' in cmd:
@@ -516,14 +603,8 @@ def Idd_TabMod_Txt(Fnc_Svr, Fnc_Tab,Fnc_Ord=None, Fnc_Brw=None,  Fnc_ClmMod=None
                 partes = cmd.split(','); idx_p = int(partes[0]) - 1; accion = partes[1].upper()
                 if 0 <= idx_p < len(registros):
                     reg_sel = registros[idx_p]
-                    if accion == 'V': formulario_yos(db_col_names, reg_sel, solo_lectura=True)
-#                    elif accion == 'M':
-#                        cambios = formulario_yos(db_col_names, reg_sel)
-#                        if cambios:
-#                            cambios.pop("nAutInc", None)
-#                            set_sql = ", ".join([f"{k}=?" for k in cambios.keys()])
-#                            Mem_Cur_YosCfg.execute(f"UPDATE {Mem_Tab_Nom} SET {set_sql} WHERE rowid=?", list(cambios.values()) + [reg_sel[0]])
-#                            Mem_Cnx_YosCfg.commit()
+                    if accion == 'V':
+                        formulario_yos(db_col_names, reg_sel, solo_lectura=True)
                     elif accion == 'M':
                         cambios = formulario_yos(db_col_names, reg_sel)
                         if cambios:
@@ -538,6 +619,9 @@ def Idd_TabMod_Txt(Fnc_Svr, Fnc_Tab,Fnc_Ord=None, Fnc_Brw=None,  Fnc_ClmMod=None
                                 permiso = next((c[2].strip() for c in Mem_Tab_ClmMod if c[0] == k), "")
                                 if permiso == "Mod":
                                     cambios_finales[k] = v
+                            # añado
+                            cambios_finales['cModRegNik'] = usuario_actual
+                            cambios_finales['cModRegTim'] = Yos_TimeStamp()
 
                             if cambios_finales:
                                 set_sql = ", ".join([f"{k}=?" for k in cambios_finales.keys()])
@@ -565,61 +649,3 @@ if __name__ == "__main__":
     Mem_Tab = "Mnu"
 
     Idd_TabMod_Txt(Mem_Dbt, Mem_Tab)   # Lo MINIMO
-"""
-    input("DATOS manUALES")
-
-        # cTxt       cCmd
-    Mem_Ord = [
-        ("MENU + ORDEN", "cMnu || cNum"),
-        ("TIPO",    "cTip"),
-        ("TEXTO",   "cTxt")
-    ]
-
-    Mem_Brw ="Main" # Nombre del Brwse a usar, por omision Main
-        # cCab          cLon    cClm
-    Mem_Brw = [
-        ("MENU",        "25",   "cMnu"),
-        ("ORDEN",       "5",   "cNum"),
-        ("TIPO",        "4",    "cTip"),
-        ("ENTORNO",     "10",   "cEtn"),
-        ("TEXTO",       "100%", "cTxt"),
-        ("USUARIO",     "15",   "cModRegNik"),
-        ("MODIFICADO",  "19",   "cModRegTim")
-    ]
-
-    Mem_ClmMod = "Main" # Nombre del ClmMod a usar, por omision Main
-            # cClm      cTxt                cMod    cOpc
-    Mem_ClmMod = [
-            ("cMnu",    "MENU",             "S",    ""),
-            ("cNum",    "Nº ORDEN",         "S",    ""),
-            ("cTip",    "TIPO",             "S",    {"Cab","Opc"}),
-            ("cEtn",    "ENTORNO",          "N",    ""),
-            ("cTxt",    "TEXTO",            "S",    ""),
-            ("cFnc",    "FUNCION",          "S",    ""),
-            ("cObs",    "OBSERVACIONES",    "S",    ""),
-        ]
-
-    Idd_Tab_Dat(Mem_Dbt, Mem_Tab, Mem_Ord, Mem_Brw, Mem_ClmMod)   # Completo con DATOS MANUALES
-
-Mem_Tab_ClmMod
-   cClm,    cCab,           cMod,   cNul,   cOpc
-[('cMnu',   'MENU',         'S',    'N',    ''),
- ('cNum',   'Nº ORDEN',     'S',    'N',    ''),
- ('cTip',   'TIPO',         'S',    '',     'Cab,Opc'),
- ('cEtn',   'ENTORNO',      'S',    '',     ',Windows,Linux,Darwin'),
- ('cTxt',   'TEXTO',        'S',    'N',    ''),
- ('cFnc', ' FUNCION',       'S',    '',     ''),
- ('cObs', ' OBSERVACIONES', 'S',    '',     '')]
-
-Mem_Tab_ClmMod_Def
-    Tipo    Longitud
-[(  'C',    25),
- (  'C',    3),
- (  'C',    3),
- (  'C',    10),
- (  'C',    50),
- (  'C',    200),
- (  'C',    100)]
-
-
-"""

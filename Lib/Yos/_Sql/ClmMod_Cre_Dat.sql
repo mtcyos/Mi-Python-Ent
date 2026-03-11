@@ -19,7 +19,7 @@ INSERT INTO 'ClmMod' VALUES
 
     ('Mnu',    'Main', '010', 'cMnu',    'MENU',              'Mod', 'N', '',                      '',                                                '{Usr}', '{DateTime}'),
     ('Mnu',    'Main', '020', 'cNum',    'Nº ORDEN',          'Mod', 'N', '',                      '',                                                '{Usr}', '{DateTime}'),
-    ('Mnu',    'Main', '030', 'cTip',    'TIPO',              'Mod', '',  'Cab,Opc',               '',                                                '{Usr}', '{DateTime}'),
+    ('Mnu',    'Main', '030', 'cTip',    'TIPO',              'Mod', '',  'Opc,Cab',               '',                                                '{Usr}', '{DateTime}'),
     ('Mnu',    'Main', '040', 'cEtn',    'ENTORNO',           'Mod', '',  ',Windows,Linux,Darwin', ',Vacio=Todos, Windows, Linux, Darwin (macOS)',    '{Usr}', '{DateTime}'),
     ('Mnu',    'Main', '050', 'cTxt',    'TEXTO',             'Mod', 'N', '',                      '',                                                '{Usr}', '{DateTime}'),
     ('Mnu',    'Main', '060', 'cFnc',    'FUNCION',           'Mod', '',  '',                      '',                                                '{Usr}', '{DateTime}'),
