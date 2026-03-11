@@ -588,28 +588,28 @@ class EmlEnvTextualScreen(Screen):
         with Vertical(classes="form_container"):
             # Destinatario
             with Horizontal(classes="campo_row"):
-                yield Static("[red]*[/] [yellow]EMAIL DESTINATARIO:[/]", classes="etiqueta")
+                yield Static("[red]*[/] [yellow]DESTINATARIO:[/]", classes="etiqueta")
                 yield Input(
                     value=self.datos_email['destinatario'],
-                    placeholder="Uno: email@ejemplo.com | Varios: email1, email2, email3",
+                    placeholder="email@ejemplo.com, email2@ejemplo.com",
                     id="input_destinatario"
                 )
 
             # Su nombre
             with Horizontal(classes="campo_row"):
-                yield Static("  [yellow]SU NOMBRE:[/]", classes="etiqueta")
+                yield Static("[yellow]NOMBRE:[/]", classes="etiqueta")
                 yield Input(
                     value=self.datos_email['su_nombre'],
-                    placeholder="Su nombre completo",
+                    placeholder="Su nombre",
                     id="input_su_nombre"
                 )
 
             # Su email
             with Horizontal(classes="campo_row"):
-                yield Static("  [yellow]SU EMAIL:[/]", classes="etiqueta")
+                yield Static("[yellow]EMAIL:[/]", classes="etiqueta")
                 yield Input(
                     value=self.datos_email['su_email'],
-                    placeholder="su.email@ejemplo.com",
+                    placeholder="su@email.com",
                     id="input_su_email"
                 )
 
@@ -622,16 +622,8 @@ class EmlEnvTextualScreen(Screen):
                     id="input_asunto"
                 )
 
-            # Checkbox para agregar info
-            yield Static(" ")
-            yield Checkbox(
-                "¿Añadir información adicional al mensaje?",
-                value=False,
-                id="chk_agregar_info"
-            )
-
-            # Info adicional (condicional)
-            with Horizontal(classes="campo_row", id="row_info_adicional"):
+            # Info adicional - SIEMPRE VISIBLE (sin checkbox)
+            with Horizontal(classes="campo_row"):
                 yield Static("  [yellow]INFO ADICIONAL:[/]", classes="etiqueta")
                 yield Input(
                     value=self.datos_email['info_adicional'],
@@ -639,7 +631,6 @@ class EmlEnvTextualScreen(Screen):
                     id="input_info_adicional"
                 )
 
-            yield Static(" ")
             yield Static("[yellow]MENSAJE (pre-cargado desde el registro):[/]")
 
             # Mensaje (TextArea para mejor edición)
@@ -654,20 +645,10 @@ class EmlEnvTextualScreen(Screen):
 
         # Botones
         with Horizontal(classes="botones"):
-            yield Button("📤 ENVIAR (F2)", variant="success", id="btn_enviar")
-            yield Button("❌ CANCELAR (Esc)", variant="error", id="btn_cancelar")
+            yield Button("ENVIAR (F2)", variant="success", id="btn_enviar")
+            yield Button("CANCELAR (Esc)", variant="error", id="btn_cancelar")
 
         yield Footer()
-
-    def on_mount(self):
-        """Ocultar campo info adicional inicialmente"""
-        row_info = self.query_one("#row_info_adicional", Horizontal)
-        row_info.display = False
-
-    def on_checkbox_changed(self, event: Checkbox.Changed):
-        """Mostrar/ocultar campo info adicional"""
-        row_info = self.query_one("#row_info_adicional", Horizontal)
-        row_info.display = event.value
 
     def action_enviar(self):
         """Enviar el email"""
@@ -691,7 +672,7 @@ class EmlEnvTextualScreen(Screen):
         su_email = self.query_one("#input_su_email", Input).value.strip()
         asunto = self.query_one("#input_asunto", Input).value.strip()
         mensaje = self.query_one("#text_mensaje", TextArea).text
-        agregar_info = self.query_one("#chk_agregar_info", Checkbox).value
+        # ELIMINADO: agregar_info = self.query_one("#chk_agregar_info", Checkbox).value
         info_adicional = self.query_one("#input_info_adicional", Input).value.strip()
 
         # Validaciones
@@ -719,7 +700,8 @@ class EmlEnvTextualScreen(Screen):
         if su_nombre or su_email:
             cuerpo_final += "*****************************************\n"
 
-        if agregar_info and info_adicional:
+        # CAMBIO: Siempre incluir info adicional si tiene contenido
+        if info_adicional:
             cuerpo_final += f"{info_adicional}\n\n"
 
         cuerpo_final += mensaje
@@ -751,7 +733,8 @@ class ConfirmarEnvioScreen(Screen):
         self.su_email = su_email
 
     def compose(self) -> ComposeResult:
-        yield Static("[yellow]******************************[/]", classes="titulo")
+#        yield Static("[yellow]******************************[/]", classes="titulo")
+        yield Static("[yellow]******************************[/]")
         yield Static("[yellow]*     VERIFIQUE EL EMAIL     *[/]")
         yield Static("[yellow]******************************[/]")
 
@@ -777,8 +760,8 @@ class ConfirmarEnvioScreen(Screen):
         yield Static(" ")
 
         with Horizontal(classes="botones"):
-            yield Button("✅ CORRECTO - ENVIAR", variant="success", id="btn_enviar")
-            yield Button("❌ INCORRECTO - CANCELAR", variant="error", id="btn_cancelar")
+            yield Button("ENVIAR", variant="success", id="btn_enviar")
+            yield Button("VOLVER", variant="error", id="btn_cancelar")
 
     def on_button_pressed(self, event: Button.Pressed):
         if event.button.id == "btn_enviar":
@@ -795,7 +778,7 @@ class ConfirmarEnvioScreen(Screen):
             from email.message import EmailMessage
 
             if not YosCfg.get("Eml_Svr", "").strip():
-                self.app.notify("❌ Servidor de correo no configurado en YosCfg", severity="error")
+                self.app.notify("Servidor de correo no configurado en YosCfg", severity="error")
                 self.dismiss(False)
                 return
 
@@ -821,11 +804,11 @@ class ConfirmarEnvioScreen(Screen):
                 server.login(YosCfg["Eml_Usr"], YosCfg["Eml_Pas"])
                 server.send_message(msg)
 
-            self.app.notify(f"✅ Email enviado a {len(lista_dest)} destinatario(s)", severity="information")
+            self.app.notify(f"Email enviado a {len(lista_dest)} destinatario(s)", severity="information")
             self.dismiss(True)
 
         except Exception as e:
-            self.app.notify(f"❌ Error al enviar: {str(e)}", severity="error")
+            self.app.notify(f"Error al enviar: {str(e)}", severity="error")
             self.dismiss(False)
 
 class FormularioScreen(Screen):
@@ -1175,7 +1158,7 @@ Button:hover {
 }
 
 .etiqueta {
-    width: 20;
+    width: 15;
     content-align: right middle;
     color: $secondary;
     text-style: bold;
@@ -1255,9 +1238,9 @@ EmlEnvTextualScreen {
 }
 
 EmlEnvTextualScreen > .form_container {
-    width: 80;
+    width: 70;
     height: auto;
-    padding: 1;
+    padding: 0 1;
 }
 
 EmlEnvTextualScreen > .form_container > .campo_row {
@@ -1268,10 +1251,6 @@ EmlEnvTextualScreen > .form_container > .campo_row {
 EmlEnvTextualScreen #text_mensaje {
     height: 15;
     border: solid $primary;
-}
-
-EmlEnvTextualScreen #row_info_adicional {
-    display: none;
 }
 
 /* Estilos para ConfirmarEnvioScreen */
