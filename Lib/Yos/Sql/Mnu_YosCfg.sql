@@ -1,0 +1,18 @@
+INSERT INTO 'Mnu' VALUES
+ ('', '{«Apl_Apl»}', '0010', '', 'MnuSub', '',                            'YosMnuEtn',         '', 'YosMnuEtn - MENU DEL ENTORNO INCIAL DE LA APLICACION', '', '{Usr}',   '{DateTime}'),
+ ('', 'YosMnuEtn',   '0010', '', 'IniPop', 'ENTORNO',                      '',                 '', 'MENU DEL ENTORNO DEL SISTEMA',                         '', '{Usr}',   '{DateTime}'),
+ ('', 'YosMnuEtn',   '0020', '', 'MnuIte', 'AYUDA - F2',                   '',                 '', '',                                                     '', '{Usr}',   '{DateTime}'),
+ ('', 'YosMnuEtn',   '0030', '', 'MnuIte', 'IMPRIMIR AYUDA',               '',                 '', '',                                                     '', '{Usr}',   '{DateTime}'),
+ ('', 'YosMnuEtn',   '0040', '', 'Sep',    '',                             '',                 '', '',                                                     '', '{Usr}',   '{DateTime}'),
+ ('', 'YosMnuEtn',   '0050', '', 'MnuIte', 'NOTICIAS',                     '',                 '', '',                                                     '', '{Usr}',   '{DateTime}'),
+ ('', 'YosMnuEtn',   '0060', '', 'Sep',    '',                             '',                 '', '',                                                     '', '{Usr}',   '{DateTime}'),
+ ('', 'YosMnuEtn',   '0070', '', 'MnuIte', 'USUARIOS ACTIVOS',             '',                 '', '',                                                     '', '{Usr}',   '{DateTime}'),
+ ('', 'YosMnuEtn',   '0080', '', 'MnuIte', 'RECARGAR MENU',                'YosMnuCag',        '', '',                                                     '', '{Usr}',   '{DateTime}'),
+ ('', 'YosMnuEtn',   '0090', '', 'MnuIte', 'YosLib - CONTROL DEL SISTEMA', '',                 '', '',                                                     '', '{Usr}',   '{DateTime}'),
+ ('', 'YosMnuEtn',   '0100', '', 'Sep',    '',                             '',                 '', '',                                                     '', '{Usr}',   '{DateTime}'),
+ ('', 'YosMnuEtn',   '0110', '', 'MnuIte', 'CONTACTE CON NOSOTROS',        '',                 '', '',                                                     '', '{Usr}',   '{DateTime}'),
+ ('', 'YosMnuEtn',   '0120', '', 'MnuIte', 'ACERCA DE ...',                'Yos_Acd_Frm()',    '', '',                                                     '', '{Usr}',   '{DateTime}'),
+ ('', 'YosMnuEtn',   '0130', '', 'MnuIte', 'LICENCIA',                     'Yos_AcdRes_Frm()', '', '',                                                     '', '{Usr}',   '{DateTime}'),
+ ('', 'YosMnuEtn',   '0140', '', 'Sep',    '',                             '',                 '', '',                                                     '', '{Usr}',   '{DateTime}'),
+ ('', 'YosMnuEtn',   '0150', '', 'MnuIte', 'CERRAR SESION',                'YosAppSld',        '', 'Debe esta por lo menos UNA vez',                       '', '{Usr}',   '{DateTime}'),
+ ('', 'YosMnuEtn',   '0160', '', 'EndPop', '',                             '',                 '', '',                                                     '', '{Usr}',   '{DateTime}')

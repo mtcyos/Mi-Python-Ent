@@ -571,7 +571,7 @@ def click_handler_fila(reg_val, btn_foco):
 # =============================================================================
 # FUNCION PRINCIPAL
 # =============================================================================
-def Idd_TabMod(Fnc_Svr, Fnc_Tab, Fnc_Ord=None, Fnc_Brw=None, Fnc_ClmMod=None):
+def Idd_TabMst(Fnc_Svr, Fnc_Tab, Fnc_Ord=None, Fnc_Brw=None, Fnc_ClmMod=None):
     global usuario_actual, nLin, offset, fila_resaltada, MARGEN
     global Mem_Dbt_Svr, Mem_Tab_Nom, Mem_Tab_Brw, Mem_Tab_Ord, Mem_Tab_ClmMod, Mem_Tab_ClmMod_Def, order_by_col, Mem_Ftr
     global Mem_Svr, Mem_Tab
@@ -1207,4 +1207,4 @@ TECLAS ESPECIALES:
 if __name__ == "__main__":
     Mem_Dbt = "YosCfg"
     Mem_Tab = "Mnu"
-    Idd_TabMod(Mem_Dbt, Mem_Tab)
+    Idd_TabMst(Mem_Dbt, Mem_Tab)

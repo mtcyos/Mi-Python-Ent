@@ -4,6 +4,8 @@
 import sys
 import os
 
+from Yos import FrmWit
+
 """
    Idd_BdtSvr.py
    ACCESO AL SERVIDOR
@@ -64,63 +66,87 @@ Ahora empezaremos con el script Idd_BdtSvr.py y tendrá las siguientes def
 
 def Cnx(Fnc_Svr, Fnc_Mod="ro"):
     # Conexion
+    if YosCfg["Dbg"] == "S": print(F"Cnx({Fnc_Svr}, {Fnc_Mod})")
 
     match Fnc_Mod:
-        case "ro": # YosCfg SIMPRE es SQLite y esta en YosCfg["Apl_Dir_Bdt"]
+        case "ro": # YosCfg SIEMPRE es SQLite y esta en YosCfg["Apl_Dir_Bdt"]
             pass
         case "rw":
             pass
         case _:
             Fnc_Mod="ro"
 
-    if Fnc_Svr=="YosCfg":
-        Mem_Tip = "SQLite"
-        Mem_Dir = os.path.join(YosCfg["Apl_Dir_Bdt"], Fnc_Svr + ".Bdt")
-        Mem_Usr = ""
-        Mem_Pas = ""
-        Mem_Bdt = ""
-        Mem_Obs = ""
-    else:
-        Mem_Tip = YosCfg[f"Apl_Bdt_{Fnc_Svr}_Tip"]
-        Mem_Dir = YosCfg[f"Apl_Bdt_{Fnc_Svr}_Dir"]
-        Mem_Usr = YosCfg[f"Apl_Bdt_{Fnc_Svr}_Usr"]
-        Mem_Pas = YosCfg[f"Apl_Bdt_{Fnc_Svr}_Pas"]
-        Mem_Bdt = YosCfg[f"Apl_Bdt_{Fnc_Svr}_Bdt"]
-        Mem_Obs = YosCfg[f"Apl_Bdt_{Fnc_Svr}_Obs"]
+    # Opciones Especiales
+    match Fnc_Svr:
+        case "YosCfg":  # Configuracion de la aplicacion
+            Mem_Cnx = {
+                "Svr": Fnc_Svr,
+                "Tip": "SQLite",
+                "Dir": os.path.join(YosCfg["Apl_Dir_Bdt"], Fnc_Svr + ".Bdt"),
+                "Usr": "",
+                "Pas": "",
+                "Bdt": "",
+                "Obs": ""
+            }
+
+        case "YosLib":  # Configuracion de la Libreria Yos
+            Mem_Cnx = {
+                "Svr": Fnc_Svr,
+                "Tip": "SQLite",
+                "Dir": os.path.join(YosCfg["Yos_Dir"], "Bdt", Fnc_Svr + ".Bdt"),
+                "Usr": "",
+                "Pas": "",
+                "Bdt": "",
+                "Obs": ""
+            }
+
+        case _:
+            match YosCfg[f"Apl_Bdt_{Fnc_Svr}_Tip"]:
+                case "SQLite":
+                    if not YosCfg[f"Apl_Bdt_{Fnc_Svr}_Dir"]: # Si esta vacio usa el directorio de la aplicacion
+                        Mem_Dir = os.path.join(YosCfg["Apl_Dir_Bdt"], Fnc_Svr + ".Bdt")
+                    else:
+                        Mem_Dir = YosCfg[f"Apl_Bdt_{Fnc_Svr}_Dir"]
+                        Mem_Dir = os.path.join(Mem_Dir, "Bdt", Fnc_Svr + ".Bdt")
+
+                case _:
+                    Mem_Dir = YosCfg[f"Apl_Bdt_{Fnc_Svr}_Dir"]
+#            print(Mem_Dir)
+
+            Mem_Cnx = {
+                "Svr": Fnc_Svr,
+                "Tip": YosCfg[f"Apl_Bdt_{Fnc_Svr}_Tip"],
+                "Dir": Mem_Dir,
+                "Usr": YosCfg[f"Apl_Bdt_{Fnc_Svr}_Usr"],
+                "Pas": YosCfg[f"Apl_Bdt_{Fnc_Svr}_Pas"],
+                "Bdt": YosCfg[f"Apl_Bdt_{Fnc_Svr}_Bdt"],
+                "Obs": YosCfg[f"Apl_Bdt_{Fnc_Svr}_Obs"]
+            }
 
     if YosCfg["Dbg"]=="S":
-        Mem_Txt=f"""
-            Fnc_Svr = {Fnc_Svr}
-            Mem_Tip = {Mem_Tip}
-            Mem_Dir = {Mem_Dir}
-            Mem_Usr = {Mem_Usr}
-            Mem_Pas = {Mem_Pas}
-            Mem_Bdt = {Mem_Bdt}
-            Mem_Obs = {Mem_Obs}
-            """
-        print(Mem_Txt)
-        input("Pulse intro")
+        print("Mem_Cnx")
+        print("--------------------------------------------------")
+        print("\n".join([f"{k}: {v}" for k, v in Mem_Cnx.items()]))
+        print("--------------------------------------------------")
+        FrmWit()
 
     try:
-        match Mem_Tip:
+        match Mem_Cnx['Tip']:
             case "SQLite":
                 # Validamos existencia física
-                SvrDir = os.path.join(YosCfg["Apl_Dir_Bdt"], Fnc_Svr + ".Bdt")
-                if not os.path.exists(SvrDir):
-                    print(f"ATENCION: NO EXISTE LA BASE DE DATOS : ./Bdt/{Fnc_Svr}.Bdt")
-                    # Verifico que EXISTAN las tablas de SQLite.Yos.cfg
-                    YosCfg_Vfy()
-                    SvrDir = os.path.join(YosCfg["Apl_Dir_Bdt"], Fnc_Svr + ".Bdt")
-                    print(f"SE HA CREADO LA BASE DE DATOS : ./Bdt/{Fnc_Svr}.Bdt")
-                    print("DEBE ACTUALIZAR LOS DATOS DE LA APLICACION")
-                    input("PULSE INTRO PARA CONTINUAR")
+                if not os.path.exists(Mem_Cnx['Dir']):
+                    print(f"ATENCION: NO EXISTE LA BASE DE DATOS : {Mem_Cnx['Dir']}")
+                    Idd_BdtSvr_Cre(Mem_Cnx)
+                    print(f"SE HA CREADO LA BASE DE DATOS : {Fnc_Svr}")
+                    print("REVISE LOS DATOS DE LA APLICACION")
+                    FrmWit()
                     #sys.exit(1)
                     #return None
 
-                uri_path = f"file:{SvrDir}?mode={Fnc_Mod}"
+                uri_path = f"file:{Mem_Cnx['Dir']}?mode={Fnc_Mod}"
 
                 import sqlite3
-                conn = sqlite3.connect(SvrDir)
+                conn = sqlite3.connect(Mem_Cnx['Dir'])
                 conn.row_factory = sqlite3.Row
                 return conn
 
@@ -132,7 +158,7 @@ def Cnx(Fnc_Svr, Fnc_Mod="ro"):
 
                 except sqlite3.Error as e:
                     print(f"Error al conectar en modo {'Lectura' if pSoloLectura else 'Escritura'}: {e}")
-                    input("PULSE INTRO PARA FINALIZAR")
+                    FrmWit()
                     sys.exit(1)
                     return None
 
@@ -143,10 +169,10 @@ def Cnx(Fnc_Svr, Fnc_Mod="ro"):
                 import pypyodbc as pyodbc
                 SvrDir = (
                     "DRIVER={ODBC Driver 18 for SQL Server};"
-                    f"SERVER={Mem_Dir};"
-                    f"DATABASE={Mem_Bdt};"
-                    f"UID={Mem_Usr};"
-                    f"PWD={Mem_Pas};"
+                    f"SERVER={Mem_Cnx['Dir']};"
+                    f"DATABASE={Mem_Cnx['Bdt']};"
+                    f"UID={Mem_Cnx['Usr']};"
+                    f"PWD={Mem_Cnx['Pas']};"
                     "Encrypt=yes;"
                     "TrustServerCertificate=yes;"
                 )
@@ -167,14 +193,14 @@ def Cnx(Fnc_Svr, Fnc_Mod="ro"):
                 print("MariaDB")
 
             case _:
-                print(f"SERVIDOR {Fnc_Svr} TIPO {Mem_Tip} NO IMPLEMENTADO")
-                input("Pulse intro para finalizar")
+                print(f"SERVIDOR {Fnc_Svr} TIPO {Mem_Cnx['Tip']} NO IMPLEMENTADO")
+                FrmWit()
                 sys.exit(1)
                 return None
 
     except Exception as Err:
-        print(f"Error de CONEXION A {Fnc_Svr} TIPO {Mem_Tip} : {Err}")
-        input("Pulse intro para finalizar")
+        print(f"Error de CONEXION A {Fnc_Svr} TIPO {Mem_Cnx['Tip']} : {Err}")
+        FrmWit()
         sys.exit(1)
         return None
 
@@ -249,7 +275,7 @@ def IptSql(Fnc_Ach, Fnc_Cnx, Fnc_Dat=None):
     """
     Lee un archivo .sql desde el directorio Yos/Sql
     """
-    Mem_Dat = os.path.join(YosCfg["Yos_Dir"], "_Sql", Fnc_Ach + ".sql")
+    Mem_Dat = os.path.join(YosCfg["Yos_Dir"], "Sql", Fnc_Ach + ".sql")
     Mem_Sql = os.path.abspath(Mem_Dat)
 
     try:
@@ -271,95 +297,109 @@ def IptSql(Fnc_Ach, Fnc_Cnx, Fnc_Dat=None):
         sys.exit(0)
         return "Err"
 
-def YosCfg_Vfy():
+def Idd_BdtSvr_Cre(Fnc_Cnx):
+    # Crea las tablas NECESARIOS de el servidor y sus datos iniciales
+    # Servidor, Tabla (Vacio=todas)
+    """
+                Mem_Cnx = {
+                "Svr": Fnc_Svr,
+                "Tip": "SQLite",
+                "Dir": os.path.join(YosCfg["Yos_Dir"], "_Bdt", Fnc_Svr + ".Bdt"),
+                "Usr": "",
+                "Pas": "",
+                "Bdt": "",
+                "Obs": ""
+            }
+    """
+    # De momento Solo YosCfg, YosLib
+    match Fnc_Cnx['Svr']:
+        case "YosCfg":
+            pass
+        case "YosLib":
+            pass
+        case _:
+            return "Err"
+
+    print("Fnc_Cnx")
+    print("--------------------------------------------------")
+    print("\n".join([f"{k}: {v}" for k, v in Fnc_Cnx.items()]))
+    print("--------------------------------------------------")
+    FrmWit()
+
+    # FrmWit(Fnc_Txt="",Fnc_Wit=0):
     import sqlite3
-    Mem_Cnx_YosCfg = sqlite3.connect(os.path.join(YosCfg["Apl_Dir_Bdt"], "YosCfg.Bdt"))
+    Mem_Cnx_YosCfg = sqlite3.connect(Fnc_Cnx['Dir'])
     Mem_Cnx_YosCfg.row_factory = sqlite3.Row
 
 #    Mem_Cnx_YosCfg = Cnx("YosCfg")
     Mem_Cur_YosCfg = Mem_Cnx_YosCfg.cursor()
 
-    from datetime import datetime
+
     # Verifico que las tablas de Yos.cfg SQLite
 
-    # Creo Apl
-    print("Creando Apl")
-    Mem_Sql = IptSql("Apl_Cre", Mem_Cnx_YosCfg)
+    # De momento Solo YosCfg, YosLib
+    match Fnc_Cnx['Svr']:
+        case "YosCfg":
+            Idd_BdtSvr_Cre_Tab("Apl", Mem_Cnx_YosCfg, Mem_Cur_YosCfg)
+            Idd_BdtSvr_Cre_Reg("Apl", "YosCfg", Mem_Cnx_YosCfg, Mem_Cur_YosCfg)
+
+            Idd_BdtSvr_Cre_Tab("Bdt", Mem_Cnx_YosCfg, Mem_Cur_YosCfg)
+#            Idd_BdtSvr_Cre_Reg("Bdt", "YosCfg", Mem_Cnx_YosCfg, Mem_Cur_YosCfg)
+
+            Idd_BdtSvr_Cre_Tab("Dat", Mem_Cnx_YosCfg, Mem_Cur_YosCfg)
+            Idd_BdtSvr_Cre_Reg("Dat", "YosCfg", Mem_Cnx_YosCfg, Mem_Cur_YosCfg)
+
+            Idd_BdtSvr_Cre_Tab("Mnu", Mem_Cnx_YosCfg, Mem_Cur_YosCfg)
+            Idd_BdtSvr_Cre_Reg("Mnu", "YosCfg", Mem_Cnx_YosCfg, Mem_Cur_YosCfg)
+
+            Idd_BdtSvr_Cre_Tab("Ord", Mem_Cnx_YosCfg, Mem_Cur_YosCfg)
+            Idd_BdtSvr_Cre_Reg("Ord", "YosCfg", Mem_Cnx_YosCfg, Mem_Cur_YosCfg)
+
+            Idd_BdtSvr_Cre_Tab("Brw", Mem_Cnx_YosCfg, Mem_Cur_YosCfg)
+            Idd_BdtSvr_Cre_Reg("Brw", "YosCfg", Mem_Cnx_YosCfg, Mem_Cur_YosCfg)
+
+            Idd_BdtSvr_Cre_Tab("ClmMod", Mem_Cnx_YosCfg, Mem_Cur_YosCfg)
+            Idd_BdtSvr_Cre_Reg("ClmMod", "YosCfg", Mem_Cnx_YosCfg, Mem_Cur_YosCfg)
+            print("CONTRASEÑA DEL ADMINISTRADOR = Admin1967")
+
+        case "YosLib":
+            Idd_BdtSvr_Cre_Tab("Bdt", Mem_Cnx_YosCfg, Mem_Cur_YosCfg)
+            Idd_BdtSvr_Cre_Reg("Bdt", "YosLib", Mem_Cnx_YosCfg, Mem_Cur_YosCfg)
+
+            Idd_BdtSvr_Cre_Tab("Dat", Mem_Cnx_YosCfg, Mem_Cur_YosCfg)
+#            Idd_BdtSvr_Cre_Reg("Dat", "YosLib", Mem_Cnx_YosCfg, Mem_Cur_YosCfg)
+
+            Idd_BdtSvr_Cre_Tab("Ord", Mem_Cnx_YosCfg, Mem_Cur_YosCfg)
+            Idd_BdtSvr_Cre_Reg("Ord", "YosCfg", Mem_Cnx_YosCfg, Mem_Cur_YosCfg)
+
+
+            Idd_BdtSvr_Cre_Tab("Brw", Mem_Cnx_YosCfg, Mem_Cur_YosCfg)
+            Idd_BdtSvr_Cre_Reg("Brw", "YosCfg", Mem_Cnx_YosCfg, Mem_Cur_YosCfg)
+
+            Idd_BdtSvr_Cre_Tab("ClmMod", Mem_Cnx_YosCfg, Mem_Cur_YosCfg)
+            Idd_BdtSvr_Cre_Reg("ClmMod", "YosCfg", Mem_Cnx_YosCfg, Mem_Cur_YosCfg)
+
+
+def Idd_BdtSvr_Cre_Tab(Mem_Tab, Mem_Cnx_YosCfg, Mem_Cur_YosCfg):
+    print(f"Creando {Mem_Tab}")
+    Mem_Sql = IptSql(f"{Mem_Tab}_Cre", Mem_Cnx_YosCfg)
     Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
     Mem_Cnx_YosCfg.commit()
 
+def Idd_BdtSvr_Cre_Reg(Mem_Tab, Mem_Svr, Mem_Cnx_YosCfg, Mem_Cur_YosCfg):
+    from datetime import datetime
     # Creo un diccionario para las sustituciones del .sql
+    input(YosCfg["Apl_Apl"])
     Mem_Dic = {
         "Mem_Ini_AplNom": Mem_Ini_AplNom,
         "Mem_Vsn": datetime.now().strftime("%Y.%m"),
         "Mem_Cpy": datetime.now().strftime("%Y")+" © Miguel Tortosa",
         "Usr": "YosCfg",
-        "DateTime": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        "DateTime": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "«Apl_Apl»": YosCfg["Apl_Apl"],
+        "«Apl_Etn»": Mem_Ini_AplEtn,
     }
-    Mem_Sql = IptSql("Apl_Cre_Dat", Mem_Cnx_YosCfg, Mem_Dic)
+    Mem_Sql = IptSql(f"{Mem_Tab}_{Mem_Svr}", Mem_Cnx_YosCfg, Mem_Dic)
+    print(Mem_Sql)
     Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
     Mem_Cnx_YosCfg.commit()
-
-    # Creo Bdt
-    print("Creando Bdt")
-    Mem_Sql = IptSql("Bdt_Cre", Mem_Cnx_YosCfg)
-    Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
-    Mem_Cnx_YosCfg.commit()
-
-    # Creo Dat
-    print("Creando Dat")
-    Mem_Sql = IptSql("Dat_Cre", Mem_Cnx_YosCfg)
-    Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
-    Mem_Cnx_YosCfg.commit()
-
-    # Creo un diccionario para las sustituciones del .sql
-    Mem_Dic = {
-        "Usr": "YosCfg",
-        "DateTime": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }
-    Mem_Sql = IptSql("Dat_Cre_Dat", Mem_Cnx_YosCfg, Mem_Dic)
-    Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
-    Mem_Cnx_YosCfg.commit()
-
-    # Creo Mnu
-    print("Creando Mnu")
-    Mem_Sql = IptSql("Mnu_Cre", Mem_Cnx_YosCfg)
-    Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
-    Mem_Cnx_YosCfg.commit()
-
-    Mem_Sql = IptSql("Mnu_Cre_Dat", Mem_Cnx_YosCfg, Mem_Dic)
-    Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
-    Mem_Cnx_YosCfg.commit()
-
-    # Creo Ord
-    print("Creando Ord")
-    Mem_Sql = IptSql("Ord_Cre", Mem_Cnx_YosCfg)
-    Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
-    Mem_Cnx_YosCfg.commit()
-
-    Mem_Sql = IptSql("Ord_Cre_Dat", Mem_Cnx_YosCfg, Mem_Dic)
-    Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
-    Mem_Cnx_YosCfg.commit()
-
-    # Creo Brw
-    print("Creando Brw")
-    Mem_Sql = IptSql("Brw_Cre", Mem_Cnx_YosCfg)
-    Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
-    Mem_Cnx_YosCfg.commit()
-
-    Mem_Sql = IptSql("Brw_Cre_Dat", Mem_Cnx_YosCfg, Mem_Dic)
-    Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
-    Mem_Cnx_YosCfg.commit()
-
-    # Creo ClmMod
-    print("Creando ClmMod")
-    Mem_Sql = IptSql("ClmMod_Cre", Mem_Cnx_YosCfg)
-    Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
-    Mem_Cnx_YosCfg.commit()
-
-    Mem_Sql = IptSql("ClmMod_Cre_Dat", Mem_Cnx_YosCfg, Mem_Dic)
-    Mem_Dat = SelTot(Mem_Cur_YosCfg, Mem_Sql)
-    Mem_Cnx_YosCfg.commit()
-
-    Cie(Mem_Cnx_YosCfg)
-    print("CONTRASEÑA DEL ADMINISTRADOR = Admin1967")

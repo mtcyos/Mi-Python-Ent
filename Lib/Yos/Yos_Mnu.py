@@ -1,243 +1,256 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-   Yos_Mnu.py
-   Genero el Menu de la Aplicacion
+    Yos_Mnu.py
+    Genero el Menu de la Aplicacion
 
-   Copyright (c) 2026 Miguel Tortosa
+    Copyright (c) 2026 Miguel Tortosa
 
-   Licenciado bajo la Licencia MIT.
+    Licenciado bajo la Licencia MIT.
 
-   Consulte el archivo LICENCIA en la raíz del proyecto para más información.
+    Consulte el archivo LICENCIA en la raíz del proyecto para más información.
 """
-
-import Yos
-from Yos.Yos_Frm import FrmCls, FrmWit
-from Yos.Yos_Ini import AplIni
-from Yos.Yos_Acd import Acd
-from Yos.Yos_Cfg import Apl_Fin
+from Yos import Yos_FrmCls, FrmWit, Apl_Txt_Fin, FrmCab
 
 import os
-from textual.app import App, ComposeResult
-from textual.widgets import Button, Static
-from textual.containers import Horizontal, Vertical, Container
 
-CSS_MNU = """
-/* Pantalla base plana */
-Screen {
-    align: center middle;
-    background: $surface;
-}
+# --- IMPORTACIONES DE PROMPT_TOOLKIT ---
+from prompt_toolkit import Application
+from prompt_toolkit.layout import Layout, HSplit, VSplit, Window
+from prompt_toolkit.layout.controls import FormattedTextControl
+from prompt_toolkit.widgets import Label, TextArea, Button
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.styles import Style
+from prompt_toolkit.formatted_text import HTML
 
-#rotulo-app {
-    text-align: center;
-    color: $accent;
-    text-style: bold;
-    padding: 1 1 0 1;
-    margin-bottom: 0;
-}
+def Mnu(Fnc_Mnu):
+    # Menu Grafico con soporte de Raton
+    """
+    Menú dinámico con persistencia.
+    Se mantiene ejecutándose hasta que se elige una función externa.
+    """
 
-#marco {
-    border: none;
-    padding: 0 2;
-    width: 100%;
-    height: 100%;
-    background: $surface;
-}
-#titulo-app {
-    text-align: center;
-    color: $warning;
-    text-style: bold;
-    padding: 0 1;
-    background: transparent;
-    height: 1;
-    margin-top: 0;
-}
-#subtitulo-app {
-    text-align: center;
-    color: cyan;
-    text-style: italic;
-    width: 100%;         /* Obliga a ocupar toda la línea para poder centrar */
-    height: 1;           /* Define una altura fija de una fila */
-    margin-bottom: 0;
-}
-
-#copyright {
-    text-align: center;
-    color: $warning;
-    text-style: italic;
-    background: transparent;
-    height: 1;
-    content-align: center middle;
-}
-
-#fila-cols {
-    width: 100%;
-    height: 1fr;
-    margin: 0;
-    padding: 0;
-}
-
-.col {
-    padding: 0;
-    margin: 0;
-    width: 1fr;
-    background: $surface;
-}
-
-.titulo-col {
-    text-align: center;
-    text-style: bold;
-    color: #AF87FF;
-    background: $surface-darken-1;
-    padding: 0 1;
-    margin: 0;
-    width: 100%;
-    height: 1;
-}
-
-Button {
-    width: 100%;
-    border: none;
-    background: $primary;
-    color: white;
-    text-align: left;
-    content-align: left middle;
-    height: 1;
-    margin: 0;
-    padding: 0 1;
-}
-
-Button:hover {
-    background: $primary-lighten-1;
-    color: white;
-}
-
-Button:focus {
-    background: $accent;
-    color: black;
-}
-"""
-
-def _agrupar_menu(fnc_mnu, ent_permitidas):
-    columnas  = []
-    col_actual = None
-    for clave, valor in sorted(fnc_mnu.items(), key=lambda x: int(x[0])):
-        ent  = valor.get("Ent", "")
-        tipo = valor.get("Tip", "")
-        if ent != "" and ent not in ent_permitidas:
-            continue
-        if tipo == "Cab":
-            col_actual = {"titulo": valor["Txt"].upper(), "items": []}
-            columnas.append(col_actual)
-        elif tipo == "Opc" and col_actual is not None:
-            col_actual["items"].append({
-                "id":  clave,
-                "txt": valor["Txt"],
-                "fnc": valor["Fnc"]
-            })
-    return columnas
-
-def _generar_rotulo():
-    """Captura el ASCII art de pyfiglet para usarlo en Textual."""
-    try:
-        import pyfiglet
-        import shutil
-        ancho = shutil.get_terminal_size().columns
-        rotulo = pyfiglet.figlet_format(
-            YosCfg["Apl_Apl"],
-            font=YosCfg["Apl_Etn_Let"]
-        ).strip()
-        # Centramos cada línea
-        lineas = rotulo.splitlines()
-        return "\n".join(linea.center(ancho) for linea in lineas)
-    except Exception:
-        return YosCfg.get("Apl_Apl", "")
-
-
-def _construir_widgets(columnas, nom, cpy, subtit=""):
-    rotulo = _generar_rotulo()          # <-- generamos el rótulo aquí
-
-    def _compose(self):
-        with Container(id="marco"):
-            yield Static(rotulo, id="rotulo-app")   # <-- ASCII art
-            yield Static(f" {nom} ", id="titulo-app")
-            if subtit:
-                yield Static(subtit, id="subtitulo-app")
-            with Horizontal(id="fila-cols"):
-                for col in columnas:
-                    with Vertical(classes="col"):
-                        yield Static(col["titulo"], classes="titulo-col")
-                        for item in col["items"]:
-                            yield Button(
-                                item["txt"],
-                                id=f"btn_{item['id']}",
-                                name=item["fnc"]
-                            )
-            yield Static(f" {cpy} ", id="copyright")
-    return _compose
-
-def _on_mount(self):
-    try:
-        self.query_one("Button").focus()
-    except Exception:
-        pass
-
-
-def _on_button_pressed(self, event):
-    self.exit(event.button.name or "")
-
-
-def _on_key(self, event, salir_fnc):
-    tecla = event.key
-    if tecla == "escape":
-        self.exit(salir_fnc)
-    elif tecla == "up":
-        self.screen.focus_previous()
-    elif tecla == "down":
-        self.screen.focus_next()
-    elif tecla in ("left", "right"):
-        botones_por_col = []
-        for col in self.query(".col"):
-            bts = list(col.query("Button"))
-            if bts:
-                botones_por_col.append(bts)
-        focused = self.screen.focused
-        col_actual = None
-        for i, bts in enumerate(botones_por_col):
-            if focused in bts:
-                col_actual = i
-                break
-        if col_actual is not None:
-            siguiente = (col_actual + 1 if tecla == "right" else col_actual - 1) % len(botones_por_col)
-            botones_por_col[siguiente][0].focus()
-    elif tecla == "enter":
-        focused = self.screen.focused
-        if focused and isinstance(focused, Button):
-            self.exit(focused.name or "")
-
-def Mnu(Fnc_Mnu=None):
     if not Fnc_Mnu:
         Fnc_Mnu = YosCfg["Apl_Mnu"]
 
-    columnas   = _agrupar_menu(Fnc_Mnu, YosCfg.get("Ent", []))
-    nom        = YosCfg.get("Apl_Nom", "Aplicación")+ " - Usr : "+YosCfg.get("Usr_Nik", "Usuario")
-    subtit     = YosCfg.get("Apl_TitSub", "")
-    cpy        = YosCfg.get("Apl_Cpy", "")
-    salir_fnc  = next((i["fnc"] for col in columnas for i in col["items"] if i["txt"] == "SALIR"), "")
+    Salir_Num = ""
+    while True:
+#        AplIni()
+        from Yos import FrmLin
 
-    _fn_compose = _construir_widgets(columnas, nom, cpy, subtit)  # rótulo incluido
+        # Recuperar variables de configuración
+        ancho_total = YosCfg["Apl_Etn_Lon"] -1
+        titulo_app = f"{YosCfg['Apl_Nom']}"
+        subtitulo_app = YosCfg['Apl_TitSub']
+        copy_app = YosCfg['Apl_Cpy']
 
-    def _fn_on_key(self, event):
-        _on_key(self, event, salir_fnc)
+        # 1. Preparar el agrupamiento por Tipo (Cab / Opc)
+        grupos = {}
+        items = sorted(Fnc_Mnu.items())
+        indice_grupo = -1
 
-    class _App(App):
-        CSS                    = CSS_MNU
-        ENABLE_COMMAND_PALETTE = False
-        compose                = _fn_compose
-        on_mount               = _on_mount
-        on_button_pressed      = _on_button_pressed
-        on_key                 = _fn_on_key
+        for clave, valor in items:
+            ent = valor.get("Ent", "")
+            if ent == "" or ent in YosCfg["Ent"]:
+                tipo = valor.get("Tip")
 
-    resultado = _App().run()
-    return resultado if resultado else ""
+                # Si es CABECERA
+                if tipo == "Cab":
+                    indice_grupo += 1
+                    str_idx = str(indice_grupo)
+                    grupos[str_idx] = []
+                    grupos[str_idx].append({
+                        "id": clave,
+                        "txt": valor["Txt"],
+                        "fnc": valor.get("Fnc", "")
+                    })
+
+                # Si es OPCIÓN
+                elif tipo == "Opc":
+                    if indice_grupo == -1:
+                        indice_grupo = 0
+                        grupos["0"] = []
+
+                    grupos[str(indice_grupo)].append({
+                        "id": clave,
+                        "txt": valor["Txt"],
+                        "fnc": valor.get("Fnc", "")
+                    })
+
+        # 2. Preparar columnas
+        claves_grupos = sorted(grupos.keys())
+        columnas = [grupos[k] for k in claves_grupos]
+        num_cols = len(columnas)
+        if num_cols == 0: return ""
+
+        ancho_col = ancho_total // num_cols
+
+        # Variables de estado para prompt_toolkit
+        estado_aplicacion = {"opcion": None}
+
+        # --- CONSTRUCCIÓN DE LA INTERFAZ PROMPT_TOOLKIT ---
+        elementos_body = []
+
+        # ROTULO
+        lineas_cab_lista = YosCfg["Apl_Cab"]
+        lineas_cab_lista.insert(0, " " * (YosCfg["Apl_Etn_Lon"] - 1))
+        Mem_Cab_Final = '\n'.join(lineas_cab_lista)         # Convertimos la lista en un solo string para el control visual
+
+        # Creamos la Window que respetará tus espacios y el logo a la derecha
+        lbl_Cab = Window(
+            content=FormattedTextControl(
+                HTML(f"<orange>{Mem_Cab_Final}</orange>")
+            ),
+            height=len(lineas_cab_lista),
+            wrap_lines=False
+        )
+
+        # Añadimos el objeto a la lista de elementos que se dibujarán
+        elementos_body = []
+        elementos_body.append(lbl_Cab)
+        # ----------------------------------
+        titulo_app_espaciado = FrmLin(titulo_app, 'C')
+        lbl_titulo = Label(HTML(f"<ansiyellow><b>{titulo_app_espaciado}</b></ansiyellow>"))
+        elementos_body.append(lbl_titulo)
+
+        if subtitulo_app:
+            subtitulo_app_espaciado = FrmLin(subtitulo_app, 'C')
+            lbl_subtitulo = Label(HTML(f"<ansicyan>{subtitulo_app_espaciado}</ansicyan>"))
+            elementos_body.append(lbl_subtitulo)
+
+        # Títulos de las columnas
+        cabeceras = []
+        for i, col in enumerate(columnas):
+            titulo = col[0]["txt"].upper()
+            ancho_disponible = ancho_col - 1
+
+            # Forzamos centrado físico en el texto
+            bloque_titulo = f"{titulo[:ancho_disponible]:^{ancho_disponible}}"
+
+            # Anclamos el width real a nivel de widget para que VSplit no encoja la cabecera
+            lbl_texto = Label(HTML(f"<b><ansimagenta>{bloque_titulo}</ansimagenta></b>"), width=ancho_disponible)
+
+            if i < len(columnas) - 1:
+                # El pipe azul ocupa exactamente 1 de width, igual que en las filas inferiores
+                lbl_pipe = Label(HTML("<ansiblue>|</ansiblue>"), width=1)
+                cabeceras.append(VSplit([lbl_texto, lbl_pipe]))
+            else:
+                cabeceras.append(lbl_texto)
+
+        elementos_body.append(VSplit(cabeceras))
+        elementos_body.append(Label(HTML("<ansiblue>" + "═" * ancho_total + "</ansiblue>")))
+
+        # --- FUNCIÓN MANEJADORA DE BOTONES ---
+        def crear_handler(id_opc):
+            def handler():
+                estado_aplicacion["opcion"] = id_opc
+                app.exit()
+            return handler
+
+        # Filas de opciones
+        max_filas = max(len(col) for col in columnas)
+
+        for i in range(1, max_filas):
+            fila_elementos = []
+            for j, col in enumerate(columnas):
+                ancho_disponible = ancho_col - 1
+
+                if i < len(col):
+                    item = col[i]
+                    id_ver = "S".ljust(len(item['id'])) if item['txt'] == "SALIR" else item['id']
+                    if item['txt'] == "SALIR":
+                        Salir_Num = item['id']
+
+                    texto_celda = f" {id_ver} - {item['txt']}"
+                    contenido = f"{texto_celda[:ancho_disponible]:<{ancho_disponible}}"
+
+                    # Botón como opción de menú, sin corchetes
+                    btn = Button(contenido, handler=crear_handler(item['id']), width=ancho_disponible)
+                    btn.left_symbol = ""
+                    btn.right_symbol = ""
+
+                    if j < num_cols - 1:
+                        fila_elementos.append(VSplit([btn, Label(HTML("<ansiblue>|</ansiblue>"), width=1)]))
+                    else:
+                        fila_elementos.append(btn)
+                else:
+                    # Rellenar espacio vacío
+                    fila_elementos.append(Label(" " * ancho_disponible, width=ancho_disponible))
+                    if j < num_cols - 1:
+                        fila_elementos.append(Label(HTML("<ansiblue>|</ansiblue>"), width=1))
+
+            elementos_body.append(VSplit(fila_elementos))
+
+        elementos_body.append(Label(HTML("<ansiblue>" + "═" * ancho_total + "</ansiblue>")))
+        elementos_body.append(Label(HTML(f"<ansiyellow>{copy_app:^{ancho_total}}</ansiyellow>")))
+
+        # Entrada de texto inferior (modo manual con Intro)
+        lbl_prompt = Label(HTML("<orange>  Seleccione Opción : </orange>"), width=23)
+        txt_opcion = TextArea(multiline=False, width=3)
+
+        def aceptar_entrada(buff):
+            texto = txt_opcion.text.strip()
+            if texto:
+                estado_aplicacion["opcion"] = texto
+                app.exit()
+            return True # Retener texto en buffer
+
+        txt_opcion.accept_handler = aceptar_entrada
+        elementos_body.append(VSplit([lbl_prompt, txt_opcion]))
+
+        # KeyBindings (atajos de teclado)
+        kb = KeyBindings()
+
+        @kb.add('c-c')
+        @kb.add('c-q')
+        def _(event):
+            estado_aplicacion["opcion"] = Salir_Num if Salir_Num else "99"
+            event.app.exit()
+
+        # Estilo estético (basado en Win_prompt_toolkit y colores ANSI)
+        estilo_yos = Style.from_dict({
+            'pantalla': 'bg:#000000',
+            'button': 'fg:white bg:#000000',
+            'button.focused': 'bg:#0000aa fg:white bold',
+            'text-area': 'bg:#333333 fg:white',
+        })
+
+        layout = Layout(HSplit(elementos_body, style='class:pantalla'))
+
+        app = Application(
+            layout=layout,
+            key_bindings=kb,
+            style=estilo_yos,
+            mouse_support=True,
+            full_screen=True,
+            erase_when_done=True
+        )
+
+        # Foco inicial en el TextArea por si prefieren teclear
+        app.layout.focus(txt_opcion)
+
+        # Correr la aplicación
+        app.run()
+
+        # Lógica secundaria al salir de app.run()
+        MnuOpc = estado_aplicacion["opcion"]
+
+        if not MnuOpc:
+            return ""
+
+        if MnuOpc.upper() == 'S':
+            MnuOpc = Salir_Num
+        else:
+            MnuOpc = MnuOpc.zfill(2)
+
+        # Lógica de validación
+        if MnuOpc in Fnc_Mnu:
+            ent_opc = Fnc_Mnu[MnuOpc].get("Ent", "")
+            if ent_opc == "" or ent_opc in YosCfg["Ent"]:
+                MnuFnc = Fnc_Mnu[MnuOpc].get("Fnc", "")
+                if MnuFnc != "":
+                    return MnuFnc
+            else:
+                continue
+        else:
+            continue
